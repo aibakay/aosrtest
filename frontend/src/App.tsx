@@ -3,11 +3,15 @@ import type { TemplateDef } from "./types";
 import { fetchTemplates } from "./api/client";
 import { TemplateSelector } from "./components/TemplateSelector";
 import { DocumentForm } from "./components/DocumentForm";
+import { OrdersPage } from "./components/OrdersPage";
+
+type Tab = "documents" | "orders";
 
 export default function App() {
   const [templates, setTemplates] = useState<TemplateDef[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [tab, setTab] = useState<Tab>("documents");
 
   useEffect(() => {
     fetchTemplates()
@@ -24,11 +28,35 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Автогенератор ИД</h1>
           <p className="text-sm text-gray-500 mt-1">Формирование исполнительной документации</p>
         </div>
 
+        <div className="flex gap-1 mb-8 border-b border-gray-200">
+          {([
+            ["documents", "Документы"],
+            ["orders", "Приказы и распоряжения"],
+          ] as [Tab, string][]).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={[
+                "px-4 py-2.5 text-sm font-medium -mb-px border-b-2 transition-colors",
+                tab === key
+                  ? "border-blue-600 text-blue-700"
+                  : "border-transparent text-gray-500 hover:text-gray-700",
+              ].join(" ")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === "orders" && <OrdersPage />}
+
+        {tab === "documents" && (
+        <>
         {loadError && (
           <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 mb-6">
             Не удалось загрузить шаблоны: {loadError}
@@ -70,6 +98,8 @@ export default function App() {
               </div>
             )}
           </>
+        )}
+        </>
         )}
       </div>
     </div>

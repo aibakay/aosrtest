@@ -1,11 +1,13 @@
 import { useState } from "react";
-import type { TemplateDef, FieldDef } from "../types";
+import type { TemplateDef, FieldDef, ResolveResponse } from "../types";
 import { FormField } from "./FormField";
-import { generateDocument, downloadBlob } from "../api/client";
+import { generateDocument, downloadBlob, resolveOrders } from "../api/client";
 
 interface Props {
   template: TemplateDef;
 }
+
+const COMPLETION_FIELD = "Дата_оконч_picker";
 
 // Group order for display
 const GROUP_ORDER = ["Объект", "Стороны", "Акт", "Подписанты", "Содержание", "Параметры", "Прочее"];
@@ -15,6 +17,33 @@ export function DocumentForm({ template }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [resolveInfo, setResolveInfo] = useState<ResolveResponse | null>(null);
+  const [resolveError, setResolveError] = useState<string | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  const hasCompletionField = template.fields.some((f) => f.name === COMPLETION_FIELD);
+
+  const pullResponsible = async () => {
+    setResolveError(null);
+    setResolveInfo(null);
+    const date = values[COMPLETION_FIELD];
+    if (!date) {
+      setResolveError("Сначала укажите дату окончания работ.");
+      return;
+    }
+    setResolving(true);
+    try {
+      const res = await resolveOrders(date);
+      // Merge resolved bookmark values; only the fields present in this template
+      // are shown, but storing all is harmless.
+      setValues((prev) => ({ ...prev, ...res.fields }));
+      setResolveInfo(res);
+    } catch (err) {
+      setResolveError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setResolving(false);
+    }
+  };
 
   const handleChange = (name: string, value: string) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -70,6 +99,49 @@ export function DocumentForm({ template }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {hasCompletionField && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h3 className="text-sm font-semibold text-blue-900">Ответственные лица</h3>
+              <p className="text-xs text-blue-700/80 mt-0.5">
+                Подтянуть приказы и распоряжения из реестра по дате окончания работ.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={pullResponsible}
+              disabled={resolving}
+              className={[
+                "px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all",
+                resolving ? "bg-blue-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700 active:scale-95",
+              ].join(" ")}
+            >
+              {resolving ? "Подбор..." : "Подтянуть ответственных"}
+            </button>
+          </div>
+
+          {resolveError && <p className="text-xs text-red-600 mt-3">{resolveError}</p>}
+
+          {resolveInfo && (
+            <div className="mt-3 space-y-1 text-xs">
+              {resolveInfo.resolved.length === 0 && (
+                <p className="text-amber-700">Подходящих приказов не найдено.</p>
+              )}
+              {resolveInfo.resolved.map((r) => (
+                <p key={r.role} className="text-blue-900">
+                  ✓ <span className="font-medium">{r.label}</span>: {r.order.fio} — {r.order.kind} № {r.order.number}
+                  {r.fallback && <span className="text-amber-700"> (вне периода действия — взят ближайший)</span>}
+                </p>
+              ))}
+              {resolveInfo.unmatched.length > 0 && (
+                <p className="text-gray-500">Без приказа: {resolveInfo.unmatched.join(", ")}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {sortedGroups.map(([group, fields]) => (
         <div key={group} className="bg-white rounded-xl border border-gray-200 p-5">
           <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">{group}</h3>
