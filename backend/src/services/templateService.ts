@@ -4,7 +4,31 @@ import PizZip from "pizzip";
 import { TemplateDef, FieldDef, FieldType } from "../types";
 import { FIELD_META, TEMPLATE_TITLES, DATE_SPLIT_RULES } from "../config/templates";
 
-const TEMPLATES_DIR = path.join(__dirname, "../../templates");
+// Resolve the templates directory robustly: works both when running from
+// src (ts-node-dev), from dist (compiled), and when bundled on Vercel where
+// __dirname differs from the project root.
+const TEMPLATES_DIR = resolveTemplatesDir();
+
+function resolveTemplatesDir(): string {
+  const candidates = [
+    process.env.TEMPLATES_DIR,
+    path.join(__dirname, "../../templates"),
+    path.join(process.cwd(), "templates"),
+    path.join(process.cwd(), "backend/templates"),
+  ].filter((p): p is string => Boolean(p));
+
+  for (const dir of candidates) {
+    try {
+      if (fs.existsSync(dir) && fs.readdirSync(dir).some(f => f.endsWith(".docx"))) {
+        return dir;
+      }
+    } catch {
+      /* ignore and try next candidate */
+    }
+  }
+  // Fallback to the original relative path (will surface a clear error later).
+  return path.join(__dirname, "../../templates");
+}
 
 // Russian month genitive forms
 const MONTHS_RU = [
@@ -123,7 +147,14 @@ export function loadTemplates(): TemplateDef[] {
 }
 
 export function getTemplatePath(code: string): string {
+  // Defense-in-depth against path traversal: only allow codes that are
+  // actually registered templates (the route validates too).
+  const known = loadTemplates().some(t => t.code === code);
+  if (!known) throw new Error(`Шаблон не найден: ${code}`);
+
   const p = path.join(TEMPLATES_DIR, `${code}.docx`);
-  if (!fs.existsSync(p)) throw new Error(`Шаблон не найден: ${code}`);
+  if (path.dirname(p) !== TEMPLATES_DIR || !fs.existsSync(p)) {
+    throw new Error(`Шаблон не найден: ${code}`);
+  }
   return p;
 }

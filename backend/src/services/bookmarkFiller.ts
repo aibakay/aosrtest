@@ -2,9 +2,11 @@
  * Fills Word bookmarks in a docx XML string by replacing the text content
  * inside each bookmarkStart/bookmarkEnd pair.
  *
- * Strategy: for each bookmark, find the first <w:t> run between
- * bookmarkStart and bookmarkEnd and replace its text. If the run has
- * formatting (w:rPr), we keep it; only the text changes.
+ * Strategy: for each bookmark, write the value into the FIRST <w:t> run
+ * between bookmarkStart and bookmarkEnd (preserving its formatting/attrs),
+ * and clear the text of any remaining <w:t> runs in the same bookmark.
+ * This handles placeholders that Word split across several runs — otherwise
+ * leftover fragments of the old placeholder would remain in the document.
  */
 
 export function fillBookmarks(xml: string, data: Record<string, string>): string {
@@ -29,18 +31,36 @@ export function fillBookmarks(xml: string, data: Record<string, string>): string
 
     const segment = xml.slice(startMatch.index, endIdx + endTag.length);
 
-    // Replace the first <w:t>…</w:t> found in this segment
-    const newSegment = segment.replace(/<w:t(\s[^>]*)?>.*?<\/w:t>/, (match, attrs) => {
-      const safeValue = escapeXml(value);
-      const preserveAttr = safeValue !== value || value.startsWith(" ") || value.endsWith(" ")
-        ? ' xml:space="preserve"'
-        : (attrs ?? "");
-      return `<w:t${preserveAttr}>${safeValue}</w:t>`;
-    });
+    // Replace every <w:t>…</w:t> in the segment: first gets the value,
+    // the rest are emptied so no old placeholder fragments survive.
+    let first = true;
+    const newSegment = segment.replace(
+      /<w:t(\s[^>]*)?>[\s\S]*?<\/w:t>/g,
+      (_match, attrs: string | undefined) => {
+        const text = first ? value : "";
+        first = false;
+        return buildTextNode(attrs, text);
+      }
+    );
 
     xml = xml.slice(0, startMatch.index) + newSegment + xml.slice(endIdx + endTag.length);
   }
   return xml;
+}
+
+/**
+ * Builds a <w:t> node, preserving the original attributes and ensuring
+ * xml:space="preserve" is present only when the value has leading/trailing
+ * whitespace (escaped special characters do NOT require it).
+ */
+function buildTextNode(attrs: string | undefined, value: string): string {
+  let attrStr = attrs ?? "";
+  const needsPreserve = /^\s|\s$/.test(value);
+  const hasPreserve = /xml:space\s*=/.test(attrStr);
+  if (needsPreserve && !hasPreserve) {
+    attrStr += ' xml:space="preserve"';
+  }
+  return `<w:t${attrStr}>${escapeXml(value)}</w:t>`;
 }
 
 function escapeRegex(s: string): string {

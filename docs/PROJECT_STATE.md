@@ -28,11 +28,19 @@ cd backend && npm install && npm run dev   # http://localhost:3001
 cd frontend && npm install && npm run dev  # http://localhost:5173
 ```
 
+## Post-review fixes (round 2)
+- `bookmarkFiller`: исправлена логика `xml:space`, сохранение атрибутов, очистка многоrun'овых закладок.
+- Сохранение результата в `/backend/output` (tmp на Vercel).
+- `app.ts`: 404 + error-handler + лимит JSON; `server.ts` только для локали; `api/index.ts` — serverless-точка входа.
+- Защита `getTemplatePath` от path traversal.
+- Тесты `node:test` (12) — `npm test`.
+- `.gitignore`: убраны `node_modules` и `output/*.docx`.
+- Структура backend подготовлена под Vercel (`vercel.json` + `includeFiles: templates/**`).
+
 ## Current blockers
 Нет.
 
 ## Next actions
-Проект завершён. При необходимости:
-1. Добавить PDF-экспорт (LibreOffice на сервере).
-2. Добавить сохранение черновиков (localStorage или БД).
-3. Расширить FIELD_META метаданными для новых типов документов.
+1. Деплой backend и frontend на Vercel (frontend: `VITE_API_URL` → URL backend).
+2. PDF-экспорт (LibreOffice на сервере).
+3. Сохранение черновиков формы (localStorage).
