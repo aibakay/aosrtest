@@ -1,4 +1,4 @@
-import type { TemplateDef } from "../types";
+import type { TemplateDef, SelectedOrderDirective } from "../types";
 
 const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 
@@ -10,12 +10,13 @@ export async function fetchTemplates(): Promise<TemplateDef[]> {
 
 export async function generateDocument(
   templateCode: string,
-  data: Record<string, string>
+  data: Record<string, string>,
+  orderDirectives?: SelectedOrderDirective[]
 ): Promise<Blob> {
   const res = await fetch(`${BASE}/documents/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ templateCode, data }),
+    body: JSON.stringify({ templateCode, data, orderDirectives }),
   });
 
   if (!res.ok) {

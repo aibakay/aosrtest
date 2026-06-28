@@ -103,6 +103,65 @@ interface GenerateRequest { templateCode: string; data: Record<string, string>; 
 5. ZIP пересобирается → `output/АОСР_<номер>_<timestamp>.docx`.
 6. Ответ: файл `.docx` (attachment). Frontend скачивает.
 
+## Приказы и распоряжения (справочник + автоподбор)
+
+Отдельная подсистема: справочник приказов/распоряжений на ответственных лиц и
+автоматический подбор действующих документов по **дате окончания работ**.
+
+### Хранение
+- Сейчас — JSON-файл `backend/data/order-directives.json`.
+- Доступ только через интерфейс `OrderDirectiveRepository`
+  (`backend/src/repositories/orderDirectiveRepository.ts`). Чтобы перейти на
+  PostgreSQL/SQLite, достаточно добавить класс, реализующий тот же интерфейс, и
+  поменять экспортируемый экземпляр — сервис и роуты не меняются.
+
+### Структура (добавлено)
+```
+backend/src/
+  repositories/orderDirectiveRepository.ts — интерфейс + JSON-реализация
+  services/orderDirectiveService.ts         — CRUD, валидация, правило автоподбора
+  routes/orderDirectives.ts                 — REST-эндпоинты
+  config/orderDirectiveMapping.ts           — роль → ключи данных Word
+backend/data/order-directives.json          — хранилище
+frontend/src/
+  router.tsx                                — мини-роутер на History API
+  pages/GeneratorPage.tsx                   — страница генератора (вынесена из App)
+  pages/OrderDirectivesPage.tsx             — справочник (таблица, фильтры, поиск)
+  components/OrderDirectiveForm.tsx         — модалка создания/редактирования
+  components/OrderDirectivesBlock.tsx       — блок автоподбора в форме генерации
+  api/orderDirectives.ts                    — fetch-клиент
+```
+
+### Эндпоинты
+- `GET    /api/order-directives` — весь список.
+- `GET    /api/order-directives/active?date=YYYY-MM-DD` — действующие на дату,
+  сгруппированы по роли, с предвыбором самого свежего и предупреждениями.
+- `POST   /api/order-directives` — создать.
+- `PUT    /api/order-directives/:id` — обновить.
+- `DELETE /api/order-directives/:id` — деактивация (soft); `?hard=true` — удаление.
+
+### Правило автоподбора
+Документ действует на дату `D`, если:
+`isActive === true` И `validFrom <= D` И (`validTo` пусто ИЛИ `validTo >= D`).
+Сравнение строк ISO (YYYY-MM-DD) корректно лексикографически.
+Если на роль найдено несколько — выбирается самый свежий по `validFrom`,
+формируется предупреждение; пользователь может выбрать другой документ вручную.
+Если на роль ничего не найдено — поле остаётся пустым, генерация не ломается.
+
+### Маппинг в Word
+`config/orderDirectiveMapping.ts` превращает выбранные документы в плоские ключи
+данных (`Приказ_<Роль>`, `_ФИО`, `_Должность`, `_Документ`). Эти ключи **аддитивны**:
+`bookmarkFiller` пишет только в существующие закладки, поэтому отсутствие
+соответствующих закладок в шаблоне безопасно (генерация не ломается). Текущие
+шаблоны выделенных закладок под приказы не содержат — см. `docs/TEMPLATES.md`.
+
+### Поток генерации с приказами
+1. В форме меняется «Дата окончания работ» (`Дата_оконч_picker`).
+2. Frontend `GET /api/order-directives/active?date=…`, показывает документы по ролям.
+3. Пользователь при необходимости меняет выбор вручную.
+4. На submit выбранные документы уходят в теле как `orderDirectives:[{role,directive}]`.
+5. Backend мапит их в ключи данных и заполняет совпадающие закладки.
+
 ## Принципы
 - Оригинальные шаблоны в `source/[Шаблоны]` — read-only; в работе используются копии в `backend/templates`.
 - Форматирование docx не ломается (правится только текст внутри закладок).

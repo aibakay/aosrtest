@@ -4,13 +4,20 @@ import { GenerateRequest } from "../types";
 import { getTemplatePath, splitDate } from "./templateService";
 import { fillBookmarks } from "./bookmarkFiller";
 import { DATE_SPLIT_RULES } from "../config/templates";
+import { buildOrderDirectiveData } from "../config/orderDirectiveMapping";
 
 export function generateDocument(req: GenerateRequest): { buffer: Buffer; fileName: string } {
   const templatePath = getTemplatePath(req.templateCode);
   const content = fs.readFileSync(templatePath);
   const zip = new PizZip(content);
 
-  const data = expandDates(req.data);
+  // Merge order: order/directive data first (defaults), then user form data on top.
+  // This means a user who manually filled "ФИО_Пд" always wins over the auto-filled
+  // value from the selected directive for the same bookmark.
+  const data = {
+    ...buildOrderDirectiveData(req.orderDirectives),
+    ...expandDates(req.data),
+  };
 
   const docFile = zip.file("word/document.xml");
   if (!docFile) throw new Error("Неверный формат шаблона: не найден word/document.xml");
