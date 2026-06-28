@@ -1,6 +1,6 @@
 import type { TemplateDef } from "../types";
 
-const BASE = "/api";
+const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
 
 export async function fetchTemplates(): Promise<TemplateDef[]> {
   const res = await fetch(`${BASE}/templates`);
