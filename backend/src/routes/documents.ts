@@ -1,5 +1,4 @@
 import { Router, Request, Response } from "express";
-import path from "path";
 import { GenerateRequest } from "../types";
 import { validate } from "../services/validationService";
 import { generateDocument } from "../services/generatorService";
@@ -15,11 +14,11 @@ router.post("/generate", (req: Request, res: Response) => {
       return;
     }
 
-    const result = generateDocument(body);
+    const { buffer, fileName } = generateDocument(body);
 
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(result.fileName)}`);
-    res.sendFile(path.resolve(result.filePath));
+    res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.send(buffer);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Ошибка генерации документа", detail: String(err) });
