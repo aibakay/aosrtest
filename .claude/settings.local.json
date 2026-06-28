@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/unzip)",
+      "Bash(unzip -o C:/Users/Artem/Desktop/claudeprojects/docx-web-autogenerator-claude/source/agenerator_5.26.06.22.zip)",
+      "Bash(python -c \"import oletools; print\\('oletools ok'\\)\")",
+      "Bash(python -m oletools.olevba --no-analysis \"Автогенератор 5.26.06.22.xlsm\")",
+      "Bash(python -m oletools.olevba --no-analysis \"ОЖР_5.3.7.xlsm\")",
+      "Bash(python C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/extract_vba.py 'C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/unzip/Автогенератор 5.26.06.22.xlsm' C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/vba_main)",
+      "Bash(python C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/extract_vba.py C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/unzip/ОЖР_5.3.7.xlsm C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/vba_ojr)",
+      "Bash(python C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/extract_bm.py C:/Users/Artem/AppData/Local/Temp/claude/C--Users-Artem-Desktop-claudeprojects-docx-web-autogenerator-claude/390d8d67-3c0c-45a1-9e29-3cf7a374c0c0/scratchpad/unzip/[Шаблоны])",
+      "Bash(python3 -c \"import oletools\")",
+      "Bash(python3 -m oletools.olevba \"source/extracted/Автогенератор 5.26.06.22.xlsm\")",
+      "Bash(npm install *)",
+      "Bash(npx tsc *)",
+      "Bash(npx ts-node-dev *)",
+      "Bash(curl -s http://localhost:3001/api/health)",
+      "Bash(curl *)",
+      "Bash(python *)",
+      "Bash(npm create *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
