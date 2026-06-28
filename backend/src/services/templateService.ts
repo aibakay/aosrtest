@@ -4,7 +4,24 @@ import PizZip from "pizzip";
 import { TemplateDef, FieldDef, FieldType } from "../types";
 import { FIELD_META, TEMPLATE_TITLES, DATE_SPLIT_RULES } from "../config/templates";
 
-const TEMPLATES_DIR = path.join(__dirname, "../../templates");
+// Resolve the templates directory across environments:
+// - local dev / compiled build: relative to this file
+// - Vercel serverless: bundled relative to the project root (cwd), made
+//   available via the `includeFiles` setting in vercel.json
+function resolveTemplatesDir(): string {
+  const candidates = [
+    path.join(__dirname, "../../templates"),
+    path.join(process.cwd(), "backend/templates"),
+    path.join(process.cwd(), "templates"),
+    "/var/task/backend/templates",
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return candidates[0];
+}
+
+const TEMPLATES_DIR = resolveTemplatesDir();
 
 // Russian month genitive forms
 const MONTHS_RU = [

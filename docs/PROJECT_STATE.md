@@ -28,11 +28,20 @@ cd backend && npm install && npm run dev   # http://localhost:3001
 cd frontend && npm install && npm run dev  # http://localhost:5173
 ```
 
+## Deployment (Vercel)
+Настроен единый Vercel-проект (ветка `claude/vercel-deployment-c0n94u`):
+- `vercel.json` — статика фронтенда + serverless `/api` + `includeFiles` шаблонов.
+- `api/index.ts` — реэкспорт Express-приложения.
+- корневой `package.json` / `tsconfig.json` — зависимости и сборка функции.
+- `server.ts` — `listen()` только при локальном запуске, иначе экспорт `app`.
+- `templateService.ts` — устойчивый поиск папки шаблонов (cwd-fallback для Vercel).
+- Локальная сборка фронта и `tsc --noEmit` бэка проходят.
+- Деплой выполняется через Git-интеграцию Vercel (нет VERCEL_TOKEN в среде).
+
 ## Current blockers
-Нет.
+Нет. Для запуска деплоя: импортировать репозиторий в Vercel (Root = корень).
 
 ## Next actions
-Проект завершён. При необходимости:
-1. Добавить PDF-экспорт (LibreOffice на сервере).
-2. Добавить сохранение черновиков (localStorage или БД).
-3. Расширить FIELD_META метаданными для новых типов документов.
+1. Импортировать репозиторий в Vercel и сделать prod-деплой.
+2. (Опц.) PDF-экспорт через серверный конвертер.
+3. (Опц.) Сохранение черновиков (localStorage / БД).
