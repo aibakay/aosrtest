@@ -23,32 +23,37 @@ npm run dev
 
 Открой браузер: **http://localhost:5173**
 
-## Деплой на Vercel
+## Деплой на Vercel (два отдельных проекта)
 
-Проект настроен как **единый Vercel-проект**: фронтенд собирается в статику,
-бэкенд (Express) разворачивается как serverless-функция на `/api`.
+Разворачивается как **два независимых Vercel-проекта**: бэкенд (serverless API)
+и фронтенд (статика). У каждого свой Root Directory и свой `vercel.json`.
 
-Конфигурация:
-- `vercel.json` — сборка фронтенда, маршрут `/api/*` → функция, подключение шаблонов (`includeFiles`).
-- `api/index.ts` — точка входа serverless-функции (реэкспорт Express-приложения).
-- корневой `package.json` — зависимости функции (`express`, `cors`, `pizzip`).
+### 1. Backend (Root Directory = `backend`)
+- `backend/api/index.ts` — точка входа serverless-функции (реэкспорт Express-приложения).
+- `backend/vercel.json` — маршрут `/api/*` → функция, шаблоны подключены через `includeFiles`.
+- Зависимости берутся из `backend/package.json`.
 
-### Через Git-интеграцию (рекомендуется)
-1. Импортируй репозиторий в Vercel (**Add New → Project**).
-2. Root Directory оставь **корнем репозитория** (не `frontend`/`backend`).
-3. Framework Preset: **Other** (всё уже задано в `vercel.json`).
-4. Deploy. Каждый push в ветку запускает новый деплой.
+Импорт: **Add New → Project** → выбрать репозиторий → **Root Directory: `backend`**
+→ Framework Preset: **Other** → Deploy.
+Получишь домен вида `https://<backend>.vercel.app` с API на `/api/*`.
+
+### 2. Frontend (Root Directory = `frontend`)
+- `frontend/vercel.json` — SPA-rewrites.
+- Framework определяется автоматически как **Vite**.
+
+Импорт: ещё один проект из того же репозитория → **Root Directory: `frontend`**
+→ в **Environment Variables** задать
+`VITE_API_URL = https://<backend>.vercel.app/api` → Deploy.
+
+Фронтенд по умолчанию ходит на `/api`; так как бэкенд на другом домене, нужно
+указать `VITE_API_URL`. CORS на бэкенде включён, кросс-доменные запросы работают.
 
 ### Через CLI
 ```bash
 npm i -g vercel
-vercel        # preview-деплой
-vercel --prod # продакшн
+cd backend  && vercel --prod   # деплой бэкенда
+cd frontend && vercel --prod   # деплой фронтенда (с VITE_API_URL в env проекта)
 ```
-
-Фронтенд обращается к API по относительному пути `/api`, поэтому на одном
-домене Vercel дополнительная настройка не нужна. При необходимости можно
-переопределить адрес бэкенда переменной окружения `VITE_API_URL`.
 
 > На Vercel файловая система только для чтения, поэтому сгенерированные
 > `.docx` не сохраняются в `output/`, а сразу отдаются в ответе на скачивание.
