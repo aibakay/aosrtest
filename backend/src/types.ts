@@ -95,6 +95,12 @@ export interface Registry {
   id: string;
   name: string;
   objectName: string;
+  /**
+   * Reusable "Объект"/"Стороны" bookmark values (Наименование_объекта,
+   * реквизиты_заказчика, etc.) entered once per registry and auto-filled
+   * into every act added to it.
+   */
+  objectFields?: Record<string, string>;
   createdAt: string; // ISO
   items: ActEntry[];
 }

@@ -229,6 +229,11 @@ export default function RegistryPage({ registryId }: Props) {
               key={`add-${selectedTemplate.code}`}
               template={selectedTemplate}
               onSave={handleSaveNew}
+              initialValues={
+                registry.objectFields && Object.values(registry.objectFields).some((v) => v?.trim())
+                  ? registry.objectFields
+                  : undefined
+              }
             />
           )}
         </Card>

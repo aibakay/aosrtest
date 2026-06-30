@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Registry, RegistryInput } from "../types";
-import { fetchRegistries, createRegistry, deleteRegistry } from "../api/registries";
+import { fetchRegistries, createRegistry, updateRegistry, deleteRegistry } from "../api/registries";
 import { navigate } from "../router";
 import { Card } from "../components/ui/Card";
 import { Button } from "../components/ui/Button";
@@ -10,6 +10,9 @@ import { ListItemCard } from "../components/ui/ListItemCard";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useToast } from "../components/ui/Toast";
+import { ObjectFieldsForm } from "../components/ObjectFieldsForm";
+
+const emptyForm: RegistryInput = { name: "", objectName: "", objectFields: {} };
 
 const AddIcon = (
   <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
@@ -28,11 +31,28 @@ export default function RegistriesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState<RegistryInput>({ name: "", objectName: "" });
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState<RegistryInput>(emptyForm);
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmTarget, setConfirmTarget] = useState<Registry | null>(null);
+
+  const formOpen = creating || editingId !== null;
+
+  const closeForm = () => {
+    setCreating(false);
+    setEditingId(null);
+    setForm(emptyForm);
+    setFormError(null);
+  };
+
+  const startEdit = (reg: Registry) => {
+    setCreating(false);
+    setEditingId(reg.id);
+    setForm({ name: reg.name, objectName: reg.objectName, objectFields: reg.objectFields ?? {} });
+    setFormError(null);
+  };
 
   const load = () => {
     setLoading(true);
@@ -44,17 +64,22 @@ export default function RegistriesPage() {
 
   useEffect(() => { load(); }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.name.trim()) { setFormError("Название реестра обязательно"); return; }
     setFormError(null);
     setSaving(true);
     try {
-      const reg = await createRegistry(form);
-      setRegistries((prev) => [reg, ...prev]);
-      setCreating(false);
-      setForm({ name: "", objectName: "" });
-      toast.show("Реестр создан", "success");
+      if (editingId) {
+        const reg = await updateRegistry(editingId, form);
+        setRegistries((prev) => prev.map((r) => (r.id === reg.id ? reg : r)));
+        toast.show("Реестр обновлён", "success");
+      } else {
+        const reg = await createRegistry(form);
+        setRegistries((prev) => [reg, ...prev]);
+        toast.show("Реестр создан", "success");
+      }
+      closeForm();
     } catch (e) {
       setFormError(String(e));
     } finally {
@@ -85,15 +110,17 @@ export default function RegistriesPage() {
           <h2 className="text-xl font-semibold text-ink-900">Реестры актов</h2>
           <p className="mt-0.5 text-sm text-ink-500">Наборы актов (АОСР / АООК / …) по объекту</p>
         </div>
-        <Button icon={AddIcon} onClick={() => { setCreating(true); setFormError(null); }}>
+        <Button icon={AddIcon} onClick={() => { setCreating(true); setEditingId(null); setForm(emptyForm); setFormError(null); }}>
           Новый реестр
         </Button>
       </div>
 
-      {creating && (
+      {formOpen && (
         <Card highlight>
-          <h3 className="mb-4 text-sm font-semibold text-ink-700">Новый реестр</h3>
-          <form onSubmit={handleCreate} className="space-y-3">
+          <h3 className="mb-4 text-sm font-semibold text-ink-700">
+            {editingId ? "Реквизиты объекта" : "Новый реестр"}
+          </h3>
+          <form onSubmit={handleSubmit} className="space-y-3">
             <div>
               <label className="mb-1 block text-xs font-medium text-ink-600">
                 Название реестра <span className="text-danger-500">*</span>
@@ -105,23 +132,31 @@ export default function RegistriesPage() {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-medium text-ink-600">Объект</label>
+              <label className="mb-1 block text-xs font-medium text-ink-600">Объект (для списка реестров)</label>
               <Input
                 placeholder="Наименование объекта строительства"
                 value={form.objectName}
                 onChange={(e) => setForm((f) => ({ ...f, objectName: e.target.value }))}
               />
             </div>
+
+            <div className="border-t border-ink-100 pt-3">
+              <p className="mb-3 text-xs text-ink-500">
+                Реквизиты объекта и сторон — заполните один раз, и они автоматически
+                подставятся в каждый акт, добавленный в этот реестр.
+              </p>
+              <ObjectFieldsForm
+                value={form.objectFields ?? {}}
+                onChange={(next) => setForm((f) => ({ ...f, objectFields: next }))}
+              />
+            </div>
+
             {formError && <p className="text-sm text-danger-700">{formError}</p>}
             <div className="flex gap-3 pt-1">
               <Button type="submit" loading={saving}>
-                {saving ? "Создание..." : "Создать"}
+                {saving ? "Сохранение..." : editingId ? "Сохранить" : "Создать"}
               </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => { setCreating(false); setFormError(null); }}
-              >
+              <Button type="button" variant="ghost" onClick={closeForm}>
                 Отмена
               </Button>
             </div>
@@ -155,6 +190,9 @@ export default function RegistriesPage() {
               <>
                 <Button variant="ghost" size="sm" onClick={() => navigate(`/registries/${reg.id}`)}>
                   Открыть
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => startEdit(reg)}>
+                  Реквизиты
                 </Button>
                 <Button
                   variant="danger-ghost"

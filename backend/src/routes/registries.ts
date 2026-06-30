@@ -33,6 +33,7 @@ router.post("/", (req: Request, res: Response) => {
     id: randomUUID(),
     name: body.name.trim(),
     objectName: body.objectName?.trim() ?? "",
+    objectFields: body.objectFields ?? {},
     createdAt: new Date().toISOString(),
     items: [],
   };
@@ -45,6 +46,7 @@ router.put("/:id", (req: Request, res: Response) => {
   const updated = registryRepository.update(req.params.id, {
     ...(body.name !== undefined && { name: body.name }),
     ...(body.objectName !== undefined && { objectName: body.objectName }),
+    ...(body.objectFields !== undefined && { objectFields: body.objectFields }),
   });
   if (!updated) return res.status(404).json({ error: "Реестр не найден" });
   res.json(updated);
@@ -70,7 +72,8 @@ router.post("/:id/acts", (req: Request, res: Response) => {
   const act: ActEntry = {
     id: randomUUID(),
     templateCode: body.templateCode.trim(),
-    data: body.data ?? {},
+    // Object-level requisites (Объект/Стороны) fill gaps; explicit act data wins.
+    data: { ...(reg.objectFields ?? {}), ...(body.data ?? {}) },
     orderDirectives: body.orderDirectives ?? [],
     createdAt: new Date().toISOString(),
   };
@@ -92,7 +95,7 @@ router.put("/:id/acts/:actId", (req: Request, res: Response) => {
   const updatedAct: ActEntry = {
     ...reg.items[idx],
     ...(body.templateCode !== undefined && { templateCode: body.templateCode }),
-    ...(body.data !== undefined && { data: body.data }),
+    ...(body.data !== undefined && { data: { ...(reg.objectFields ?? {}), ...body.data } }),
     ...(body.orderDirectives !== undefined && { orderDirectives: body.orderDirectives }),
   };
 
