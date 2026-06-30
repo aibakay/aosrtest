@@ -7,6 +7,9 @@ import type {
 import { fetchActiveOnDate } from "../api/orderDirectives";
 import { buildFieldSuggestions } from "../config/orderFieldMapping";
 import { Link } from "../router";
+import { Card } from "./ui/Card";
+import { Select } from "./ui/Input";
+import { Spinner } from "./ui/Spinner";
 
 interface Props {
   /** ISO YYYY-MM-DD — дата окончания работ */
@@ -80,26 +83,30 @@ export function OrderDirectivesBlock({ workEndDate, onChange, onFieldSuggestions
   }, [chosen, result]);
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5">
+    <Card>
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">
+        <h3 className="text-sm font-semibold uppercase tracking-wide text-ink-500">
           Приказы и распоряжения
         </h3>
-        <Link to="/order-directives" className="text-xs text-blue-600 hover:underline">
+        <Link to="/order-directives" className="text-xs text-brand-600 hover:underline">
           Управлять справочником →
         </Link>
       </div>
 
       {!workEndDate && (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-ink-400">
           Укажите дату окончания работ — действующие приказы подтянутся автоматически.
         </p>
       )}
 
-      {loading && <p className="text-sm text-gray-400">Подбор действующих документов…</p>}
+      {loading && (
+        <p className="flex items-center gap-2 text-sm text-ink-400">
+          <Spinner /> Подбор действующих документов…
+        </p>
+      )}
 
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="rounded-lg border border-danger-500/30 bg-danger-50 p-3 text-sm text-danger-700">{error}</div>
       )}
 
       {result && !loading && (
@@ -120,12 +127,11 @@ export function OrderDirectivesBlock({ workEndDate, onChange, onFieldSuggestions
               <div className="space-y-3">
                 {result.groups.map((g) => (
                   <div key={g.role} className="grid grid-cols-1 gap-1 sm:grid-cols-[260px_1fr] sm:items-center">
-                    <div className="text-sm font-medium text-gray-700">
+                    <div className="text-sm font-medium text-ink-700">
                       {g.role}
                       {g.hasMultiple && <span className="ml-1 text-amber-600" title="Найдено несколько">⚠</span>}
                     </div>
-                    <select
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    <Select
                       value={chosen[g.role] ?? ""}
                       onChange={(e) => setChosen((p) => ({ ...p, [g.role]: e.target.value }))}
                     >
@@ -133,17 +139,17 @@ export function OrderDirectivesBlock({ workEndDate, onChange, onFieldSuggestions
                       {g.candidates.map((c) => (
                         <option key={c.id} value={c.id}>{describe(c)}</option>
                       ))}
-                    </select>
+                    </Select>
                   </div>
                 ))}
               </div>
-              <p className="mt-3 text-xs text-gray-400">
+              <p className="mt-3 text-xs text-ink-400">
                 ФИО и должности подписантов подставлены в форму автоматически — отредактируйте при необходимости.
               </p>
             </>
           )}
         </>
       )}
-    </div>
+    </Card>
   );
 }

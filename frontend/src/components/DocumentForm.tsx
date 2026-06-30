@@ -3,6 +3,8 @@ import type { TemplateDef, FieldDef, SelectedOrderDirective } from "../types";
 import { FormField } from "./FormField";
 import { OrderDirectivesBlock } from "./OrderDirectivesBlock";
 import { generateDocument, downloadBlob } from "../api/client";
+import { Card } from "./ui/Card";
+import { Button } from "./ui/Button";
 
 interface Props {
   template: TemplateDef;
@@ -14,6 +16,17 @@ interface Props {
 }
 
 const GROUP_ORDER = ["Объект", "Стороны", "Акт", "Подписанты", "Содержание", "Параметры", "Прочее"];
+
+const SaveIcon = (
+  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+    <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />
+  </svg>
+);
+const GenerateIcon = (
+  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+  </svg>
+);
 
 function draftKey(code: string) {
   return `draft:${code}`;
@@ -178,8 +191,8 @@ export function DocumentForm({ template, onSave, initialValues, initialOrderDire
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {sortedGroups.map(([group, fields]) => (
-        <div key={group} className="bg-white rounded-xl border border-gray-200 p-5">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">{group}</h3>
+        <Card key={group}>
+          <h3 className="text-sm font-semibold text-ink-500 uppercase tracking-wide mb-4">{group}</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {fields.map((f) => (
               <div
@@ -196,7 +209,7 @@ export function DocumentForm({ template, onSave, initialValues, initialOrderDire
               </div>
             ))}
           </div>
-        </div>
+        </Card>
       ))}
 
       {hasWorkEndDate && (
@@ -208,64 +221,29 @@ export function DocumentForm({ template, onSave, initialValues, initialOrderDire
       )}
 
       {serverError && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700 whitespace-pre-wrap">
+        <div className="rounded-lg bg-danger-50 border border-danger-500/30 p-4 text-sm text-danger-700 whitespace-pre-wrap">
           {serverError}
         </div>
       )}
 
       {bundleNotice && (
-        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
+        <div className="rounded-lg bg-brand-50 border border-brand-200 p-4 text-sm text-brand-800">
           📦 {bundleNotice}
         </div>
       )}
 
       <div className="flex items-center gap-4 flex-wrap">
-        <button
-          type="submit"
-          disabled={loading}
-          className={[
-            "flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-all",
-            loading
-              ? "bg-blue-400 cursor-not-allowed"
-              : "bg-blue-600 hover:bg-blue-700 active:scale-95",
-          ].join(" ")}
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-              </svg>
-              {onSave ? "Сохранение..." : "Генерация..."}
-            </>
-          ) : onSave ? (
-            <>
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />
-              </svg>
-              Сохранить акт
-            </>
-          ) : (
-            <>
-              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-              </svg>
-              Сформировать документ
-            </>
-          )}
-        </button>
+        <Button type="submit" size="md" loading={loading} icon={onSave ? SaveIcon : GenerateIcon}>
+          {loading ? (onSave ? "Сохранение..." : "Генерация...") : onSave ? "Сохранить акт" : "Сформировать документ"}
+        </Button>
 
         {hasDraft && !loading && (
-          <button
-            type="button"
-            onClick={handleClear}
-            className="px-4 py-3 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-all"
-          >
+          <Button type="button" variant="ghost" onClick={handleClear}>
             Очистить форму
-          </button>
+          </Button>
         )}
 
-        <span className="text-xs text-gray-400">
+        <span className="text-xs text-ink-400">
           {hasDraft ? "Черновик сохранён" : "Файл .docx будет скачан автоматически"}
         </span>
       </div>

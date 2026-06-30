@@ -2,8 +2,28 @@ import { useEffect, useState } from "react";
 import type { Registry, RegistryInput } from "../types";
 import { fetchRegistries, createRegistry, deleteRegistry } from "../api/registries";
 import { navigate } from "../router";
+import { Card } from "../components/ui/Card";
+import { Button } from "../components/ui/Button";
+import { Input } from "../components/ui/Input";
+import { Spinner } from "../components/ui/Spinner";
+import { ListItemCard } from "../components/ui/ListItemCard";
+import { EmptyState } from "../components/ui/EmptyState";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { useToast } from "../components/ui/Toast";
+
+const AddIcon = (
+  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+  </svg>
+);
+const RegistriesEmptyIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+  </svg>
+);
 
 export default function RegistriesPage() {
+  const toast = useToast();
   const [registries, setRegistries] = useState<Registry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -12,6 +32,7 @@ export default function RegistriesPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmTarget, setConfirmTarget] = useState<Registry | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -33,6 +54,7 @@ export default function RegistriesPage() {
       setRegistries((prev) => [reg, ...prev]);
       setCreating(false);
       setForm({ name: "", objectName: "" });
+      toast.show("Реестр создан", "success");
     } catch (e) {
       setFormError(String(e));
     } finally {
@@ -40,16 +62,19 @@ export default function RegistriesPage() {
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Удалить реестр вместе со всеми актами?")) return;
+  const handleDelete = async () => {
+    if (!confirmTarget) return;
+    const id = confirmTarget.id;
     setDeletingId(id);
     try {
       await deleteRegistry(id);
       setRegistries((prev) => prev.filter((r) => r.id !== id));
+      toast.show("Реестр удалён", "success");
     } catch (e) {
-      alert(String(e));
+      toast.show(String(e), "error");
     } finally {
       setDeletingId(null);
+      setConfirmTarget(null);
     }
   };
 
@@ -57,124 +82,104 @@ export default function RegistriesPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Реестры актов</h2>
-          <p className="text-sm text-gray-500 mt-0.5">Наборы актов (АОСР / АООК / …) по объекту</p>
+          <h2 className="text-xl font-semibold text-ink-900">Реестры актов</h2>
+          <p className="mt-0.5 text-sm text-ink-500">Наборы актов (АОСР / АООК / …) по объекту</p>
         </div>
-        <button
-          onClick={() => { setCreating(true); setFormError(null); }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-        >
-          <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-          </svg>
+        <Button icon={AddIcon} onClick={() => { setCreating(true); setFormError(null); }}>
           Новый реестр
-        </button>
+        </Button>
       </div>
 
       {creating && (
-        <div className="bg-white rounded-xl border border-blue-200 p-5 shadow-sm">
-          <h3 className="text-sm font-semibold text-gray-700 mb-4">Новый реестр</h3>
+        <Card highlight>
+          <h3 className="mb-4 text-sm font-semibold text-ink-700">Новый реестр</h3>
           <form onSubmit={handleCreate} className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">
-                Название реестра <span className="text-red-500">*</span>
+              <label className="mb-1 block text-xs font-medium text-ink-600">
+                Название реестра <span className="text-danger-500">*</span>
               </label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <Input
                 placeholder="Например: Реестр актов по корпусу А"
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Объект</label>
-              <input
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              <label className="mb-1 block text-xs font-medium text-ink-600">Объект</label>
+              <Input
                 placeholder="Наименование объекта строительства"
                 value={form.objectName}
                 onChange={(e) => setForm((f) => ({ ...f, objectName: e.target.value }))}
               />
             </div>
-            {formError && (
-              <p className="text-sm text-red-600">{formError}</p>
-            )}
+            {formError && <p className="text-sm text-danger-700">{formError}</p>}
             <div className="flex gap-3 pt-1">
-              <button
-                type="submit"
-                disabled={saving}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-              >
+              <Button type="submit" loading={saving}>
                 {saving ? "Создание..." : "Создать"}
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
                 onClick={() => { setCreating(false); setFormError(null); }}
-                className="px-4 py-2 rounded-lg text-sm font-medium text-gray-500 hover:bg-gray-100 transition-colors"
               >
                 Отмена
-              </button>
+              </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
       {loading && (
-        <div className="flex items-center gap-2 text-gray-400 text-sm py-8">
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-          </svg>
-          Загрузка реестров...
+        <div className="flex items-center gap-2 py-8 text-sm text-ink-400">
+          <Spinner /> Загрузка реестров...
         </div>
       )}
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 p-4 text-sm text-red-700">{error}</div>
+        <div className="rounded-lg border border-danger-500/30 bg-danger-50 p-4 text-sm text-danger-700">{error}</div>
       )}
 
       {!loading && !error && registries.length === 0 && !creating && (
-        <div className="text-center py-20 text-gray-400">
-          <svg className="h-12 w-12 mx-auto mb-4 opacity-30" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          <p className="text-sm">Реестров пока нет — создайте первый</p>
-        </div>
+        <EmptyState icon={RegistriesEmptyIcon} message="Реестров пока нет — создайте первый" />
       )}
 
       <div className="space-y-3">
         {registries.map((reg) => (
-          <div
+          <ListItemCard
             key={reg.id}
-            className="bg-white rounded-xl border border-gray-200 p-5 flex items-center gap-4 hover:border-blue-300 transition-colors cursor-pointer"
             onClick={() => navigate(`/registries/${reg.id}`)}
-          >
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-gray-900 truncate">{reg.name}</p>
-              {reg.objectName && (
-                <p className="text-sm text-gray-500 truncate mt-0.5">{reg.objectName}</p>
-              )}
-              <p className="text-xs text-gray-400 mt-1">
-                {reg.items.length} {actWord(reg.items.length)} · создан {formatDate(reg.createdAt)}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <button
-                onClick={(e) => { e.stopPropagation(); navigate(`/registries/${reg.id}`); }}
-                className="px-3 py-1.5 rounded-lg text-sm text-blue-600 font-medium hover:bg-blue-50 transition-colors"
-              >
-                Открыть
-              </button>
-              <button
-                onClick={(e) => { e.stopPropagation(); handleDelete(reg.id); }}
-                disabled={deletingId === reg.id}
-                className="px-3 py-1.5 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors disabled:opacity-40"
-              >
-                Удалить
-              </button>
-            </div>
-          </div>
+            title={reg.name}
+            subtitle={reg.objectName || undefined}
+            meta={`${reg.items.length} ${actWord(reg.items.length)} · создан ${formatDate(reg.createdAt)}`}
+            actions={
+              <>
+                <Button variant="ghost" size="sm" onClick={() => navigate(`/registries/${reg.id}`)}>
+                  Открыть
+                </Button>
+                <Button
+                  variant="danger-ghost"
+                  size="sm"
+                  loading={deletingId === reg.id}
+                  onClick={() => setConfirmTarget(reg)}
+                >
+                  Удалить
+                </Button>
+              </>
+            }
+          />
         ))}
       </div>
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title="Удалить реестр?"
+        message={`Реестр «${confirmTarget?.name}» и все его акты будут удалены без возможности восстановления.`}
+        confirmLabel="Удалить"
+        danger
+        loading={deletingId !== null}
+        onConfirm={handleDelete}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 }

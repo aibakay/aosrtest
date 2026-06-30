@@ -8,16 +8,22 @@ import {
   deleteOrderDirective,
 } from "../api/orderDirectives";
 import { OrderDirectiveForm } from "../components/OrderDirectiveForm";
-
-const selectClass =
-  "rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-400";
+import { Button } from "../components/ui/Button";
+import { Input, Select } from "../components/ui/Input";
+import { Badge } from "../components/ui/Badge";
+import { Spinner } from "../components/ui/Spinner";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import { useToast } from "../components/ui/Toast";
 
 export default function OrderDirectivesPage() {
+  const toast = useToast();
   const [items, setItems] = useState<OrderDirective[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<OrderDirective | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [confirmTarget, setConfirmTarget] = useState<OrderDirective | null>(null);
+  const [deactivating, setDeactivating] = useState(false);
 
   // filters & search
   const [search, setSearch] = useState("");
@@ -74,15 +80,21 @@ export default function OrderDirectivesPage() {
     setShowForm(false);
     setEditing(null);
     load();
+    toast.show(editing ? "Запись обновлена" : "Запись добавлена", "success");
   };
 
-  const handleDeactivate = async (item: OrderDirective) => {
-    if (!confirm(`Деактивировать «${item.type === "directive" ? "распоряжение" : "приказ"} № ${item.number}»?`)) return;
+  const handleDeactivate = async () => {
+    if (!confirmTarget) return;
+    setDeactivating(true);
     try {
-      await deleteOrderDirective(item.id);
+      await deleteOrderDirective(confirmTarget.id);
       load();
+      toast.show("Деактивировано", "success");
     } catch (e) {
-      setError(String(e));
+      toast.show(String(e), "error");
+    } finally {
+      setDeactivating(false);
+      setConfirmTarget(null);
     }
   };
 
@@ -90,67 +102,63 @@ export default function OrderDirectivesPage() {
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">Приказы и распоряжения</h2>
-          <p className="mt-1 text-sm text-gray-500">
+          <h2 className="text-xl font-semibold text-ink-900">Приказы и распоряжения</h2>
+          <p className="mt-1 text-sm text-ink-500">
             Справочник приказов и распоряжений на ответственных лиц
           </p>
         </div>
-        <button
-          onClick={() => { setEditing(null); setShowForm(true); }}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-        >
-          + Добавить
-        </button>
+        <Button onClick={() => { setEditing(null); setShowForm(true); }}>+ Добавить</Button>
       </div>
 
       {/* Filters */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          className={selectClass + " min-w-[220px] flex-1"}
+        <Input
+          className="min-w-[220px] flex-1"
           placeholder="Поиск: номер, ФИО, должность, организация"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <select className={selectClass} value={fType} onChange={(e) => setFType(e.target.value)}>
+        <Select className="!w-auto" value={fType} onChange={(e) => setFType(e.target.value)}>
           <option value="">Все типы</option>
           <option value="order">Приказ</option>
           <option value="directive">Распоряжение</option>
-        </select>
-        <select className={selectClass} value={fRole} onChange={(e) => setFRole(e.target.value)}>
+        </Select>
+        <Select className="!w-auto" value={fRole} onChange={(e) => setFRole(e.target.value)}>
           <option value="">Все роли</option>
           {ORDER_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-        </select>
-        <select className={selectClass} value={fOrg} onChange={(e) => setFOrg(e.target.value)}>
+        </Select>
+        <Select className="!w-auto" value={fOrg} onChange={(e) => setFOrg(e.target.value)}>
           <option value="">Все организации</option>
           {organizations.map((o) => <option key={o} value={o}>{o}</option>)}
-        </select>
-        <select className={selectClass} value={fActive} onChange={(e) => setFActive(e.target.value)}>
+        </Select>
+        <Select className="!w-auto" value={fActive} onChange={(e) => setFActive(e.target.value)}>
           <option value="">Активные и нет</option>
           <option value="active">Только активные</option>
           <option value="inactive">Только неактивные</option>
-        </select>
-        <label className="flex items-center gap-1 text-sm text-gray-600">
+        </Select>
+        <label className="flex items-center gap-1 text-sm text-ink-600">
           Действует на:
-          <input type="date" className={selectClass} value={fOnDate} onChange={(e) => setFOnDate(e.target.value)} />
+          <Input type="date" className="!w-auto" value={fOnDate} onChange={(e) => setFOnDate(e.target.value)} />
         </label>
         {(search || fType || fRole || fOrg || fActive || fOnDate) && (
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={() => { setSearch(""); setFType(""); setFRole(""); setFOrg(""); setFActive(""); setFOnDate(""); }}
-            className="text-sm text-blue-600 hover:underline"
           >
             Сбросить
-          </button>
+          </Button>
         )}
       </div>
 
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="mb-4 rounded-lg border border-danger-500/30 bg-danger-50 p-3 text-sm text-danger-700">{error}</div>
       )}
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
+      <div className="overflow-x-auto rounded-xl border border-ink-200 bg-white">
+        <table className="min-w-full divide-y divide-ink-200 text-sm">
+          <thead className="bg-ink-50 text-left text-xs uppercase tracking-wide text-ink-500">
             <tr>
               <th className="px-4 py-3">Тип</th>
               <th className="px-4 py-3">Номер / дата</th>
@@ -162,26 +170,30 @@ export default function OrderDirectivesPage() {
               <th className="px-4 py-3"></th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-ink-100">
             {loading ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Загрузка...</td></tr>
+              <tr>
+                <td colSpan={8} className="px-4 py-8 text-center text-ink-400">
+                  <span className="inline-flex items-center gap-2"><Spinner /> Загрузка...</span>
+                </td>
+              </tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={8} className="px-4 py-8 text-center text-gray-400">Записей не найдено</td></tr>
+              <tr><td colSpan={8} className="px-4 py-8 text-center text-ink-400">Записей не найдено</td></tr>
             ) : (
               filtered.map((i) => (
-                <tr key={i.id} className={i.isActive ? "" : "bg-gray-50/60 text-gray-400"}>
+                <tr key={i.id} className={i.isActive ? "" : "bg-ink-50/60 text-ink-400"}>
                   <td className="px-4 py-3 whitespace-nowrap">
                     {i.type === "directive" ? "Распоряжение" : "Приказ"}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">
                     <span className="font-medium">№ {i.number}</span>
-                    <div className="text-xs text-gray-400">{i.date}</div>
+                    <div className="text-xs text-ink-400">{i.date}</div>
                   </td>
                   <td className="px-4 py-3">{i.role}</td>
                   <td className="px-4 py-3">
                     {i.responsiblePersonName || "—"}
                     {i.responsiblePersonPosition && (
-                      <div className="text-xs text-gray-400">{i.responsiblePersonPosition}</div>
+                      <div className="text-xs text-ink-400">{i.responsiblePersonPosition}</div>
                     )}
                   </td>
                   <td className="px-4 py-3">{i.organization || "—"}</td>
@@ -189,20 +201,16 @@ export default function OrderDirectivesPage() {
                     {i.validFrom} — {i.validTo || "бессрочно"}
                   </td>
                   <td className="px-4 py-3">
-                    {i.isActive ? (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">активна</span>
-                    ) : (
-                      <span className="rounded-full bg-gray-200 px-2 py-0.5 text-xs font-medium text-gray-500">неактивна</span>
-                    )}
+                    {i.isActive ? <Badge tone="success">активна</Badge> : <Badge tone="neutral">неактивна</Badge>}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-right">
-                    <button onClick={() => { setEditing(i); setShowForm(true); }} className="text-sm text-blue-600 hover:underline">
+                    <Button variant="ghost" size="sm" onClick={() => { setEditing(i); setShowForm(true); }}>
                       Изменить
-                    </button>
+                    </Button>
                     {i.isActive && (
-                      <button onClick={() => handleDeactivate(i)} className="ml-3 text-sm text-red-600 hover:underline">
+                      <Button variant="danger-ghost" size="sm" className="ml-1" onClick={() => setConfirmTarget(i)}>
                         Деактивировать
-                      </button>
+                      </Button>
                     )}
                   </td>
                 </tr>
@@ -212,7 +220,7 @@ export default function OrderDirectivesPage() {
         </table>
       </div>
 
-      <p className="mt-3 text-xs text-gray-400">
+      <p className="mt-3 text-xs text-ink-400">
         Показано {filtered.length} из {items.length}
       </p>
 
@@ -223,6 +231,17 @@ export default function OrderDirectivesPage() {
           onSave={handleSave}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmTarget !== null}
+        title="Деактивировать запись?"
+        message={`«${confirmTarget?.type === "directive" ? "Распоряжение" : "Приказ"} № ${confirmTarget?.number}» перестанет учитываться при автоподборе ответственных лиц.`}
+        confirmLabel="Деактивировать"
+        danger
+        loading={deactivating}
+        onConfirm={handleDeactivate}
+        onCancel={() => setConfirmTarget(null)}
+      />
     </div>
   );
 }

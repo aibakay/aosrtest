@@ -18,7 +18,9 @@
       "Bash(curl *)",
       "Bash(python *)",
       "Bash(npm create *)",
-      "Bash(npm run *)"
+      "Bash(npm run *)",
+      "Skill(run)",
+      "Bash(Start-Process -NoNewWindow -FilePath \"cmd\" -ArgumentList \"/c npm run dev > ../backend.log 2>&1\")"
     ]
   }
 }

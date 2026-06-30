@@ -1,3 +1,5 @@
+import { Input } from "./ui/Input";
+
 interface Props {
   label: string;
   required?: boolean;
@@ -54,28 +56,24 @@ export function AttachmentsListField({ label, required, value, onChange, error }
     update(next);
   };
 
-  const inputBase = [
-    "flex-1 rounded-lg border px-3 py-2 text-sm text-gray-800",
-    "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent",
-  ].join(" ");
-
   return (
     <div className="flex flex-col gap-1.5">
-      <label className="flex items-center gap-1.5 text-sm font-medium text-gray-700">
+      <label className="flex items-center gap-1.5 text-sm font-medium text-ink-700">
         {label}
-        {required && <span className="text-red-500">*</span>}
+        {required && <span className="text-danger-500">*</span>}
       </label>
 
       <div className="flex flex-col gap-2">
         {items.map((item, index) => (
           <div key={index} className="flex items-center gap-2">
-            <span className="w-6 shrink-0 text-right text-xs text-gray-400 font-mono select-none">
+            <span className="w-6 shrink-0 select-none text-right font-mono text-xs text-ink-400">
               {index + 1}.
             </span>
 
-            <input
+            <Input
               type="text"
-              className={`${inputBase} ${error ? "border-red-400 bg-red-50" : "border-gray-300 bg-white"}`}
+              className="flex-1"
+              error={!!error}
               value={item}
               onChange={(e) => handleChange(index, e.target.value)}
               placeholder={`Приложение ${index + 1}`}
@@ -87,7 +85,7 @@ export function AttachmentsListField({ label, required, value, onChange, error }
                 onClick={() => handleMoveUp(index)}
                 disabled={index === 0}
                 title="Вверх"
-                className="px-1 text-gray-400 hover:text-gray-600 disabled:opacity-20 leading-none text-xs"
+                className="px-1 text-xs leading-none text-ink-400 hover:text-ink-600 disabled:opacity-20"
               >
                 ▲
               </button>
@@ -96,7 +94,7 @@ export function AttachmentsListField({ label, required, value, onChange, error }
                 onClick={() => handleMoveDown(index)}
                 disabled={index === items.length - 1}
                 title="Вниз"
-                className="px-1 text-gray-400 hover:text-gray-600 disabled:opacity-20 leading-none text-xs"
+                className="px-1 text-xs leading-none text-ink-400 hover:text-ink-600 disabled:opacity-20"
               >
                 ▼
               </button>
@@ -106,7 +104,7 @@ export function AttachmentsListField({ label, required, value, onChange, error }
               type="button"
               onClick={() => handleRemove(index)}
               title="Удалить"
-              className="p-1 rounded text-gray-300 hover:text-red-500 transition-colors text-sm leading-none"
+              className="rounded p-1 text-sm leading-none text-ink-300 transition-colors hover:text-danger-500"
             >
               ✕
             </button>
@@ -117,12 +115,12 @@ export function AttachmentsListField({ label, required, value, onChange, error }
       <button
         type="button"
         onClick={handleAdd}
-        className="mt-0.5 flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800 font-medium w-fit"
+        className="mt-0.5 flex w-fit items-center gap-1 text-sm font-medium text-brand-600 hover:text-brand-700"
       >
         <span className="text-base leading-none">+</span> Добавить приложение
       </button>
 
-      {error && <p className="text-xs text-red-600">{error}</p>}
+      {error && <p className="text-xs text-danger-700">{error}</p>}
     </div>
   );
 }
