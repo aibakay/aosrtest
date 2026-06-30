@@ -53,11 +53,32 @@ cd backend && npm install && npm run dev   # http://localhost:3001
 cd frontend && npm install && npm run dev  # http://localhost:5173
 ```
 
+## Функция «Авто-реестр документов, подтверждающих качество» (п.5)
+
+Условная логика: если поле приложений (`приложения` / `Приложения` / `Приложения_АООК`) содержит >5 строк:
+- В акте (`приложения`/`Приложения`/`Приложения_АООК`) проставляется ссылка «Согласно реестру документов, подтверждающих качество (прилагается)».
+- Генерируется отдельный .docx-реестр: заголовок, ссылка на акт, таблица «№ / Наименование документа / Примечание».
+- Оба файла упаковываются в ZIP (`Пакет_документов_<ts>.zip`) и возвращаются за один запрос.
+- Фронтенд определяет ZIP по `Content-Type: application/zip`, сохраняет с правильным именем, показывает синее уведомление на 8 с.
+
+**Файлы:**
+- `backend/src/services/qualityRegistryService.ts` — парсинг приложений + генерация реестра .docx (без файла-шаблона, XML в коде) ✅
+- `backend/src/services/generatorService.ts` — логика >5, ZIP-бандл ✅
+- `backend/src/routes/documents.ts` — ZIP-ответ при наличии реестра ✅
+- `frontend/src/api/client.ts` — `GenerateResult {blob, fileName, isBundle}` ✅
+- `frontend/src/components/DocumentForm.tsx` — уведомление при isBundle ✅
+
+## Функция «Нумерация приложений» (п.6) ✅
+
+- **Frontend**: новый тип поля `"attachments"` — компонент `AttachmentsListField` со списком строк (добавить / удалить / перетащить стрелками). Данные хранятся как `\n`-разделённая строка в `values`, совместимо с API и localStorage-черновиками.
+- **Backend**: `generatorService.ts` — перед `fillBookmarks` добавляет нумерацию `1. … 2. …` (если ≤5 строк). `bookmarkFiller.ts` — поддержка `\n` → `<w:br/>` внутри Word-рана.
+- **Согласование с п.5**: `parseAttachments` вызывается до нумерации и strips existing numbers, так что счётчик >5 работает корректно; если >5 → реестр, иначе → нумерованный список в закладке.
+- **Изменённые файлы**: `types.ts` (фронт+бэк), `config/templates.ts`, `AttachmentsListField.tsx` (новый), `FormField.tsx`, `DocumentForm.tsx`, `bookmarkFiller.ts`, `generatorService.ts`.
+
 ## Current blockers
 Нет.
 
 ## Next actions
-Проект завершён. При необходимости:
-1. Добавить PDF-экспорт (LibreOffice на сервере).
-2. Добавить сохранение черновиков (localStorage или БД).
+1. При необходимости добавить шаблон реестра из файла (`.docx`) вместо XML-генерации в коде.
+2. Добавить PDF-экспорт (LibreOffice на сервере).
 3. Расширить FIELD_META метаданными для новых типов документов.

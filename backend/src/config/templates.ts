@@ -3,7 +3,7 @@
 
 export interface FieldMeta {
   label: string;
-  type?: "text" | "textarea" | "date" | "number";
+  type?: "text" | "textarea" | "date" | "number" | "attachments";
   required?: boolean;
   group?: string;
 }
@@ -77,9 +77,9 @@ export const FIELD_META: Record<string, FieldMeta> = {
   Наименование_последующих_работ: { label: "Последующие работы", type: "textarea", group: "Содержание" },
   Доп_сведения:                 { label: "Дополнительные сведения", type: "textarea", group: "Содержание" },
   экз:                          { label: "Кол-во экземпляров", type: "number", group: "Содержание" },
-  приложения:                   { label: "Приложения", type: "textarea", group: "Содержание" },
-  Приложения:                   { label: "Приложения", type: "textarea", group: "Содержание" },
-  Приложения_АООК:              { label: "Приложения", type: "textarea", group: "Содержание" },
+  приложения:                   { label: "Приложения", type: "attachments", group: "Содержание" },
+  Приложения:                   { label: "Приложения", type: "attachments", group: "Содержание" },
+  Приложения_АООК:              { label: "Приложения", type: "attachments", group: "Содержание" },
   // ── АООК/АОУСИТО specific ────────────────────────────────────────────
   Проекты_АОСР:                 { label: "Проектная документация (АОСР)", type: "textarea", group: "Содержание" },
   Акты_ОСР:                     { label: "Акты освидетельствования скрытых работ", type: "textarea", group: "Содержание" },

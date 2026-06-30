@@ -1,4 +1,5 @@
 import type { FieldDef } from "../types";
+import { AttachmentsListField } from "./AttachmentsListField";
 
 interface Props {
   field: FieldDef;
@@ -19,6 +20,18 @@ export function FormField({ field, value, onChange, error, autoFilled }: Props) 
         ? "border-blue-300 bg-blue-50"
         : "border-gray-300 bg-white",
   ].join(" ");
+
+  if (field.type === "attachments") {
+    return (
+      <AttachmentsListField
+        label={field.label}
+        required={field.required}
+        value={value}
+        onChange={(v) => onChange(field.name, v)}
+        error={error}
+      />
+    );
+  }
 
   return (
     <div className="flex flex-col gap-1">

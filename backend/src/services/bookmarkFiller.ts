@@ -29,13 +29,24 @@ export function fillBookmarks(xml: string, data: Record<string, string>): string
 
     const segment = xml.slice(startMatch.index, endIdx + endTag.length);
 
-    // Replace the first <w:t>…</w:t> found in this segment
-    const newSegment = segment.replace(/<w:t(\s[^>]*)?>.*?<\/w:t>/, (match, attrs) => {
-      const safeValue = escapeXml(value);
-      const preserveAttr = safeValue !== value || value.startsWith(" ") || value.endsWith(" ")
-        ? ' xml:space="preserve"'
-        : (attrs ?? "");
-      return `<w:t${preserveAttr}>${safeValue}</w:t>`;
+    // Replace the first <w:t>…</w:t> found in this segment.
+    // For multi-line values (containing \n), inject <w:br/> between lines.
+    const newSegment = segment.replace(/<w:t(\s[^>]*)?>.*?<\/w:t>/, (_match, _attrs) => {
+      const lines = value.split("\n");
+      if (lines.length === 1) {
+        const safe = escapeXml(value);
+        const attr = value.startsWith(" ") || value.endsWith(" ") ? ' xml:space="preserve"' : "";
+        return `<w:t${attr}>${safe}</w:t>`;
+      }
+      // Build <w:t>line</w:t><w:br/><w:t>line</w:t>... inside the existing run
+      return lines
+        .map((line, i) => {
+          const safe = escapeXml(line);
+          const attr = line.startsWith(" ") || line.endsWith(" ") ? ' xml:space="preserve"' : "";
+          const br = i < lines.length - 1 ? "<w:br/>" : "";
+          return `<w:t${attr}>${safe}</w:t>${br}`;
+        })
+        .join("");
     });
 
     xml = xml.slice(0, startMatch.index) + newSegment + xml.slice(endIdx + endTag.length);

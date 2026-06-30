@@ -6,6 +6,11 @@ import { generateDocument, downloadBlob } from "../api/client";
 
 interface Props {
   template: TemplateDef;
+  /** When provided, renders a "save" button instead of "generate". */
+  onSave?: (data: Record<string, string>, orderDirectives: SelectedOrderDirective[]) => Promise<void> | void;
+  /** Pre-populate form fields (used when editing an existing act). */
+  initialValues?: Record<string, string>;
+  initialOrderDirectives?: SelectedOrderDirective[];
 }
 
 const GROUP_ORDER = ["Объект", "Стороны", "Акт", "Подписанты", "Содержание", "Параметры", "Прочее"];
@@ -32,14 +37,17 @@ function clearDraft(code: string) {
   try { localStorage.removeItem(draftKey(code)); } catch { /* ignore */ }
 }
 
-export function DocumentForm({ template }: Props) {
+export function DocumentForm({ template, onSave, initialValues, initialOrderDirectives }: Props) {
   const [values, setValues] = useState<Record<string, string>>(
-    () => loadDraft(template.code)
+    () => initialValues ?? loadDraft(template.code)
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [orderDirectives, setOrderDirectives] = useState<SelectedOrderDirective[]>([]);
+  const [bundleNotice, setBundleNotice] = useState<string | null>(null);
+  const [orderDirectives, setOrderDirectives] = useState<SelectedOrderDirective[]>(
+    initialOrderDirectives ?? []
+  );
 
   // Tracks which fields were last set by order auto-suggestion (not by the user).
   // Stored in a ref so mutation doesn't trigger re-render.
@@ -120,10 +128,19 @@ export function DocumentForm({ template }: Props) {
 
     setLoading(true);
     try {
-      const blob = await generateDocument(template.code, values, orderDirectives);
-      const today = new Date().toISOString().slice(0, 10);
-      downloadBlob(blob, `${template.code}_${today}.docx`);
-      clearDraft(template.code);
+      if (onSave) {
+        await onSave(values, orderDirectives);
+      } else {
+        const result = await generateDocument(template.code, values, orderDirectives);
+        downloadBlob(result.blob, result.fileName);
+        clearDraft(template.code);
+        if (result.isBundle) {
+          setBundleNotice(
+            "Приложений больше 5 — скачан ZIP-архив с актом и реестром документов, подтверждающих качество."
+          );
+          setTimeout(() => setBundleNotice(null), 8000);
+        }
+      }
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Неизвестная ошибка");
     } finally {
@@ -167,7 +184,7 @@ export function DocumentForm({ template }: Props) {
             {fields.map((f) => (
               <div
                 key={f.name}
-                className={f.type === "textarea" ? "sm:col-span-2" : ""}
+                className={f.type === "textarea" || f.type === "attachments" ? "sm:col-span-2" : ""}
               >
                 <FormField
                   field={f}
@@ -196,6 +213,12 @@ export function DocumentForm({ template }: Props) {
         </div>
       )}
 
+      {bundleNotice && (
+        <div className="rounded-lg bg-blue-50 border border-blue-200 p-4 text-sm text-blue-800">
+          📦 {bundleNotice}
+        </div>
+      )}
+
       <div className="flex items-center gap-4 flex-wrap">
         <button
           type="submit"
@@ -213,7 +236,14 @@ export function DocumentForm({ template }: Props) {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
               </svg>
-              Генерация...
+              {onSave ? "Сохранение..." : "Генерация..."}
+            </>
+          ) : onSave ? (
+            <>
+              <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />
+              </svg>
+              Сохранить акт
             </>
           ) : (
             <>

@@ -1,4 +1,4 @@
-export type FieldType = "text" | "textarea" | "date" | "number";
+export type FieldType = "text" | "textarea" | "date" | "number" | "attachments";
 
 export interface FieldDef {
   name: string;
@@ -64,3 +64,24 @@ export interface SelectedOrderDirective {
   role: string;
   directive: OrderDirective;
 }
+
+// ── Registry (реестр актов) ───────────────────────────────────────────────
+
+export interface ActEntry {
+  id: string;
+  templateCode: string;
+  data: Record<string, string>;
+  orderDirectives?: SelectedOrderDirective[];
+  createdAt: string;
+}
+
+export interface Registry {
+  id: string;
+  name: string;
+  objectName: string;
+  createdAt: string;
+  items: ActEntry[];
+}
+
+export type RegistryInput = Omit<Registry, "id" | "createdAt" | "items">;
+export type ActEntryInput = Omit<ActEntry, "id" | "createdAt">;

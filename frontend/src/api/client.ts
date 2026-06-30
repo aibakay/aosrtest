@@ -1,6 +1,11 @@
 import type { TemplateDef, SelectedOrderDirective } from "../types";
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
+const BASE = (
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
+  (import.meta.env.PROD
+    ? "https://jubilant-unity-production-cdbb.up.railway.app/api"
+    : "/api")
+);
 
 export async function fetchTemplates(): Promise<TemplateDef[]> {
   const res = await fetch(`${BASE}/templates`);
@@ -8,11 +13,19 @@ export async function fetchTemplates(): Promise<TemplateDef[]> {
   return res.json();
 }
 
+export interface GenerateResult {
+  blob: Blob;
+  /** Suggested filename extracted from Content-Disposition (if present). */
+  fileName: string;
+  /** true when the response is a ZIP bundle (act + quality registry). */
+  isBundle: boolean;
+}
+
 export async function generateDocument(
   templateCode: string,
   data: Record<string, string>,
   orderDirectives?: SelectedOrderDirective[]
-): Promise<Blob> {
+): Promise<GenerateResult> {
   const res = await fetch(`${BASE}/documents/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -27,7 +40,17 @@ export async function generateDocument(
     throw new Error(messages);
   }
 
-  return res.blob();
+  const isBundle = res.headers.get("Content-Type")?.includes("application/zip") ?? false;
+
+  // Extract filename from Content-Disposition: attachment; filename*=UTF-8''<encoded>
+  let fileName = isBundle ? `Пакет_документов.zip` : `${templateCode}.docx`;
+  const cd = res.headers.get("Content-Disposition") ?? "";
+  const fnMatch = cd.match(/filename\*=UTF-8''(.+)/i) ?? cd.match(/filename="?([^";]+)"?/i);
+  if (fnMatch) {
+    try { fileName = decodeURIComponent(fnMatch[1]); } catch { /* keep default */ }
+  }
+
+  return { blob: await res.blob(), fileName, isBundle };
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

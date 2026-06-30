@@ -4,7 +4,12 @@ import type {
   ActiveDirectivesResult,
 } from "../types";
 
-const BASE = (import.meta.env.VITE_API_URL as string | undefined) ?? "/api";
+const BASE = (
+  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
+  (import.meta.env.PROD
+    ? "https://jubilant-unity-production-cdbb.up.railway.app/api"
+    : "/api")
+);
 const URL = `${BASE}/order-directives`;
 
 async function parseError(res: Response): Promise<string> {
