@@ -1,9 +1,22 @@
 # Автогенератор ИД — веб-версия
 
-Веб-замена Excel/VBA-автогенератора исполнительной документации.  
+Веб-замена Excel/VBA-автогенератора исполнительной документации.
 Поддерживает 15 типов документов: АОСР, АООК, АОУСИТО, АРООКС, АОГРОКС, АВК, АГИ, АИИО, АПрОб, ОтЭфД, Пролив, Промывка и др.
 
-## Запуск
+## Продакшн
+
+| Что | Где |
+|---|---|
+| Frontend | https://frontend-chi-blush-17.vercel.app |
+| Backend API (используется фронтендом) | https://jubilant-unity-production-cdbb.up.railway.app |
+| Backend (зеркало на Vercel) | https://backend-pi-ashy-93.vercel.app |
+
+Бэкенд задеплоен на **Railway** (основной, хранит `backend/data/*.json`) и
+продублирован на **Vercel** (`backend/vercel.json`). Фронтенд — на **Vercel**
+(`frontend/vercel.json`); адрес backend задаётся через `VITE_API_URL`
+(см. `frontend/src/api/*.ts`).
+
+## Запуск локально
 
 ### Backend
 ```bash
@@ -21,19 +34,40 @@ npm run dev
 # запускается на http://localhost:5173
 ```
 
-Открой браузер: **http://localhost:5173**
-
-Открой браузер: **http://localhost:5173** — две вкладки сверху:
-**«Генератор ИД»** и **«Приказы и распоряжения»** (`/order-directives`).
+Открой браузер: **http://localhost:5173**. Навигация сверху:
+**«Обзор»**, **«Генератор ИД»**, **«Реестры актов»**, **«Приказы и распоряжения»**.
 
 ## Использование
 
-1. Выбери тип документа в сетке сверху.
-2. Заполни поля формы (обязательные отмечены `*`).
-3. При указании «Даты окончания работ» в блоке «Приказы и распоряжения»
+1. На странице **«Генератор ИД»** выбери тип документа и заполни форму
+   (обязательные поля отмечены `*`).
+2. При указании «Даты окончания работ» в блоке «Приказы и распоряжения»
    автоматически подтянутся действующие на эту дату документы (можно заменить вручную).
-4. Нажми «Сформировать документ».
-5. Файл `.docx` скачается автоматически.
+3. Нажми «Сформировать документ» — `.docx` скачается автоматически
+   (а если приложений к акту больше 5 — придёт `.zip` с актом и реестром
+   документов, подтверждающих качество).
+
+Для серии актов по одному объекту удобнее работать через **«Реестры актов»**
+(см. ниже) — реквизиты вводятся один раз и переиспользуются.
+
+## Реестры актов и автоподстановка по объекту
+
+Раздел `/registries` группирует акты (АОСР/АООК/…) по одному объекту строительства.
+
+- Реестр хранит **реквизиты объекта** (`objectFields`): наименование объекта,
+  город, реквизиты заказчика/генподрядчика/проектировщика/подрядчика,
+  наименование исполнителя — заполняются один раз в форме создания реестра
+  или через кнопку «Реквизиты» у существующего реестра.
+- При добавлении нового акта в реестр (`/registries/:id` → «Добавить акт»)
+  эти значения автоматически подставляются в форму — поля остаются
+  редактируемыми для конкретного акта.
+- На бэкенде реквизиты объекта дополнительно подмешиваются в данные акта
+  при сохранении (`POST/PUT /api/registries/:id/acts...`), так что
+  подстановка работает независимо от клиента.
+- Кнопка «Сформировать реестр» генерирует все акты реестра + сводную таблицу
+  реестра одним `.zip`.
+- **Где хранятся**: `backend/data/registries.json`, через
+  `RegistryRepository` (тот же JSON-репозиторий-паттерн, что и у приказов).
 
 ## Приказы и распоряжения
 
@@ -62,12 +96,21 @@ npm run dev
 |---|---|---|
 | GET | `/api/health` | Проверка работоспособности |
 | GET | `/api/templates` | Список шаблонов с полями |
-| POST | `/api/documents/generate` | Генерация `.docx` |
+| POST | `/api/documents/generate` | Генерация `.docx` (или `.zip`, если приложений > 5) |
 | GET | `/api/order-directives` | Список приказов/распоряжений |
 | GET | `/api/order-directives/active?date=YYYY-MM-DD` | Действующие на дату (по ролям) |
 | POST | `/api/order-directives` | Создать запись |
 | PUT | `/api/order-directives/:id` | Обновить запись |
 | DELETE | `/api/order-directives/:id` | Деактивировать (`?hard=true` — удалить) |
+| GET | `/api/registries` | Список реестров актов |
+| GET | `/api/registries/:id` | Реестр со всеми актами |
+| POST | `/api/registries` | Создать реестр (`name`, `objectName`, `objectFields`) |
+| PUT | `/api/registries/:id` | Обновить реестр / реквизиты объекта |
+| DELETE | `/api/registries/:id` | Удалить реестр |
+| POST | `/api/registries/:id/acts` | Добавить акт в реестр |
+| PUT | `/api/registries/:id/acts/:actId` | Обновить акт |
+| DELETE | `/api/registries/:id/acts/:actId` | Удалить акт |
+| POST | `/api/registries/:id/generate` | Сгенерировать все акты реестра + сводную таблицу в `.zip` |
 
 Тело запроса `/api/documents/generate`:
 ```json
@@ -78,7 +121,8 @@ npm run dev
     "Номер_акта": "1",
     "Дата_акта_picker": "2026-06-28",
     ...
-  }
+  },
+  "orderDirectives": []
 }
 ```
 
@@ -87,28 +131,43 @@ npm run dev
 ```
 backend/
   src/
-    server.ts              — Express точка входа
-    routes/                — health, templates, documents
+    server.ts                 — Express точка входа
+    routes/                   — health, templates, documents, order-directives, registries
     services/
-      templateService.ts   — загрузка шаблонов, извлечение закладок
-      bookmarkFiller.ts    — заполнение Word-закладок в document.xml
-      generatorService.ts  — генерация .docx (pizzip)
-      validationService.ts — валидация обязательных полей
-    config/templates.ts    — метаданные полей (label, type, group)
-  templates/               — рабочие копии Word-шаблонов
-  output/                  — сгенерированные файлы
+      templateService.ts      — загрузка шаблонов, извлечение закладок
+      bookmarkFiller.ts       — заполнение Word-закладок в document.xml
+      generatorService.ts     — генерация .docx (pizzip)
+      validationService.ts    — валидация обязательных полей
+      orderDirectiveService.ts— подбор действующих приказов/распоряжений по дате
+      qualityRegistryService.ts — реестр документов, подтверждающих качество (>5 приложений)
+      registryDocxService.ts  — сводная таблица реестра актов в .docx
+    repositories/             — JSON-репозитории (order-directives, registries)
+    config/templates.ts       — метаданные полей (label, type, group)
+  data/                       — JSON-хранилище (приказы, реестры актов)
+  templates/                  — рабочие копии Word-шаблонов
+  output/                     — сгенерированные файлы
 
 frontend/
   src/
-    api/client.ts          — fetch к backend
+    api/                      — fetch к backend (client, orderDirectives, registries)
     components/
-      TemplateSelector.tsx  — выбор типа документа
-      DocumentForm.tsx      — динамическая форма
-      FormField.tsx         — отдельное поле
+      DocumentForm.tsx        — динамическая форма генерации акта
+      FormField.tsx           — отдельное поле
+      ObjectFieldsForm.tsx    — реквизиты объекта/сторон (для реестра)
+      OrderDirectivesBlock.tsx— автоподбор приказов по дате окончания работ
+      AttachmentsListField.tsx— список приложений к акту
+      layout/, ui/            — общий каркас и переиспользуемые UI-компоненты
+    pages/
+      DashboardPage.tsx       — обзор
+      GeneratorPage.tsx       — генератор документов
+      RegistriesPage.tsx      — список реестров актов
+      RegistryPage.tsx        — реестр: акты, реквизиты объекта, пакетная генерация
+      OrderDirectivesPage.tsx — справочник приказов/распоряжений
+    config/objectFields.ts    — общие поля «Объект»/«Стороны»
     App.tsx
 
-source/                    — оригинальный архив (read-only)
-docs/                      — анализ, архитектура, QA
+source/                       — оригинальный архив (read-only)
+docs/                         — анализ, архитектура, QA
 ```
 
 ## Технологии
@@ -116,8 +175,10 @@ docs/                      — анализ, архитектура, QA
 - **Backend**: Node.js, Express, TypeScript, pizzip (docx как zip)
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **Генерация**: прямая правка `word/document.xml` (заполнение Word Bookmarks)
+- **Деплой**: Railway (backend, основной) + Vercel (frontend и зеркало backend)
 
 ## Ограничения (вне MVP)
-- Автоматические реестры приложений (Excel Power Query) — вводятся вручную текстом.
 - PDF-экспорт — не реализован.
 - Копирование вложенных файлов (схем, протоколов) — не реализовано.
+- Хранилище данных (приказы, реестры) — JSON-файлы без конкурентных блокировок,
+  достаточно для одного пользователя/малой команды.
