@@ -64,7 +64,15 @@ export function OrderDirectiveForm({ initial, onCancel, onSave }: Props) {
           <h3 className="text-lg font-semibold text-ink-900">
             {initial ? "Редактировать запись" : "Добавить приказ / распоряжение"}
           </h3>
-          <button type="button" onClick={onCancel} className="text-ink-400 hover:text-ink-600">✕</button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-ink-400 hover:text-ink-600"
+            title="Закрыть"
+            aria-label="Закрыть"
+          >
+            ✕
+          </button>
         </div>
 
         <div className="grid grid-cols-1 gap-4 px-6 py-5 sm:grid-cols-2">

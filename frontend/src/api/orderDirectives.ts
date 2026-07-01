@@ -3,7 +3,7 @@ import type {
   OrderDirectiveInput,
   ActiveDirectivesResult,
 } from "../types";
-import { API_BASE as BASE } from "./config";
+import { API_BASE as BASE, apiFetch } from "./config";
 
 const URL = `${BASE}/order-directives`;
 
@@ -14,13 +14,13 @@ async function parseError(res: Response): Promise<string> {
 }
 
 export async function fetchOrderDirectives(): Promise<OrderDirective[]> {
-  const res = await fetch(URL);
+  const res = await apiFetch(URL);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
 
 export async function fetchActiveOnDate(date: string): Promise<ActiveDirectivesResult> {
-  const res = await fetch(`${URL}/active?date=${encodeURIComponent(date)}`);
+  const res = await apiFetch(`${URL}/active?date=${encodeURIComponent(date)}`);
   if (!res.ok) throw new Error(await parseError(res));
   return res.json();
 }
@@ -28,7 +28,7 @@ export async function fetchActiveOnDate(date: string): Promise<ActiveDirectivesR
 export async function createOrderDirective(
   input: OrderDirectiveInput
 ): Promise<OrderDirective> {
-  const res = await fetch(URL, {
+  const res = await apiFetch(URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -41,7 +41,7 @@ export async function updateOrderDirective(
   id: string,
   input: OrderDirectiveInput
 ): Promise<OrderDirective> {
-  const res = await fetch(`${URL}/${id}`, {
+  const res = await apiFetch(`${URL}/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
@@ -52,7 +52,7 @@ export async function updateOrderDirective(
 
 /** Soft-delete (deactivate). Pass hard=true to remove permanently. */
 export async function deleteOrderDirective(id: string, hard = false): Promise<void> {
-  const res = await fetch(`${URL}/${id}${hard ? "?hard=true" : ""}`, {
+  const res = await apiFetch(`${URL}/${id}${hard ? "?hard=true" : ""}`, {
     method: "DELETE",
   });
   if (!res.ok) throw new Error(await parseError(res));

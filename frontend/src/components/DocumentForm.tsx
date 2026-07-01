@@ -5,6 +5,7 @@ import { OrderDirectivesBlock } from "./OrderDirectivesBlock";
 import { generateDocument, downloadBlob } from "../api/client";
 import { Card } from "./ui/Card";
 import { Button } from "./ui/Button";
+import { DownloadIcon } from "./icons";
 
 interface Props {
   template: TemplateDef;
@@ -15,6 +16,10 @@ interface Props {
   initialOrderDirectives?: SelectedOrderDirective[];
 }
 
+// Orders form field sections within a single template. Unrelated to the
+// document-type ORDER list in backend/src/services/templateService.ts
+// (which orders the /api/templates list itself) — the two don't need to
+// stay in sync.
 const GROUP_ORDER = ["Объект", "Стороны", "Акт", "Подписанты", "Содержание", "Параметры", "Прочее"];
 
 const SaveIcon = (
@@ -22,11 +27,7 @@ const SaveIcon = (
     <path d="M7.707 10.293a1 1 0 10-1.414 1.414l3 3a1 1 0 001.414 0l3-3a1 1 0 00-1.414-1.414L11 11.586V6h5a2 2 0 012 2v7a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h5v5.586l-1.293-1.293z" />
   </svg>
 );
-const GenerateIcon = (
-  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-  </svg>
-);
+const GenerateIcon = <DownloadIcon />;
 
 function draftKey(code: string) {
   return `draft:${code}`;
@@ -52,12 +53,13 @@ function clearDraft(code: string) {
 
 export function DocumentForm({ template, onSave, initialValues, initialOrderDirectives }: Props) {
   const [values, setValues] = useState<Record<string, string>>(
-    () => initialValues ?? loadDraft(template.code)
+    () => initialValues ?? (onSave ? {} : loadDraft(template.code))
   );
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [bundleNotice, setBundleNotice] = useState<string | null>(null);
+  const [unresolvedNotice, setUnresolvedNotice] = useState<string | null>(null);
   const [orderDirectives, setOrderDirectives] = useState<SelectedOrderDirective[]>(
     initialOrderDirectives ?? []
   );
@@ -66,10 +68,14 @@ export function DocumentForm({ template, onSave, initialValues, initialOrderDire
   // Stored in a ref so mutation doesn't trigger re-render.
   const autoFilledFields = useRef<Set<string>>(new Set());
 
-  // Persist draft to localStorage on every values change.
+  // Persist draft to localStorage on every values change — only in the
+  // standalone generator (onSave is undefined there). When onSave is set
+  // (editing a registry act), writing here would clobber the generator's
+  // own draft for the same template code.
   useEffect(() => {
+    if (onSave) return;
     saveDraft(template.code, values);
-  }, [template.code, values]);
+  }, [template.code, values, onSave]);
 
   const hasWorkEndDate = template.fields.some((f) => f.name === "Дата_оконч_picker");
   const workEndDate = values["Дата_оконч_picker"] ?? "";
@@ -153,6 +159,15 @@ export function DocumentForm({ template, onSave, initialValues, initialOrderDire
           );
           setTimeout(() => setBundleNotice(null), 8000);
         }
+        if (result.unresolvedBookmarks.length > 0) {
+          const labels = result.unresolvedBookmarks.map((name) => {
+            const field = template.fields.find((f) => f.name === name);
+            return field?.label ?? name;
+          });
+          setUnresolvedNotice(
+            `Документ скачан, но некоторые поля не удалось вставить в шаблон: ${labels.join(", ")}. Проверьте документ и сообщите разработчику.`
+          );
+        }
       }
     } catch (err) {
       setServerError(err instanceof Error ? err.message : "Неизвестная ошибка");
@@ -229,6 +244,12 @@ export function DocumentForm({ template, onSave, initialValues, initialOrderDire
       {bundleNotice && (
         <div className="rounded-lg bg-brand-50 border border-brand-200 p-4 text-sm text-brand-800">
           📦 {bundleNotice}
+        </div>
+      )}
+
+      {unresolvedNotice && (
+        <div className="rounded-lg bg-amber-50 border border-amber-300 p-4 text-sm text-amber-800">
+          {unresolvedNotice}
         </div>
       )}
 

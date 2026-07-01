@@ -32,11 +32,12 @@ export function Link({
   to,
   className,
   children,
+  ...rest
 }: {
   to: string;
   className?: string;
   children: React.ReactNode;
-}) {
+} & Omit<React.AnchorHTMLAttributes<HTMLAnchorElement>, "href" | "onClick">) {
   return (
     <a
       href={to}
@@ -45,6 +46,7 @@ export function Link({
         e.preventDefault();
         navigate(to);
       }}
+      {...rest}
     >
       {children}
     </a>

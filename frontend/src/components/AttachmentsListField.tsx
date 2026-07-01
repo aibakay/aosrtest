@@ -85,6 +85,7 @@ export function AttachmentsListField({ label, required, value, onChange, error }
                 onClick={() => handleMoveUp(index)}
                 disabled={index === 0}
                 title="Вверх"
+                aria-label="Переместить вверх"
                 className="px-1 text-xs leading-none text-ink-400 hover:text-ink-600 disabled:opacity-20"
               >
                 ▲
@@ -94,6 +95,7 @@ export function AttachmentsListField({ label, required, value, onChange, error }
                 onClick={() => handleMoveDown(index)}
                 disabled={index === items.length - 1}
                 title="Вниз"
+                aria-label="Переместить вниз"
                 className="px-1 text-xs leading-none text-ink-400 hover:text-ink-600 disabled:opacity-20"
               >
                 ▼
@@ -104,6 +106,7 @@ export function AttachmentsListField({ label, required, value, onChange, error }
               type="button"
               onClick={() => handleRemove(index)}
               title="Удалить"
+              aria-label="Удалить приложение"
               className="rounded p-1 text-sm leading-none text-ink-300 transition-colors hover:text-danger-500"
             >
               ✕

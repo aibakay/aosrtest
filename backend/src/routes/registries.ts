@@ -5,6 +5,8 @@ import { registryRepository } from "../repositories/registryRepository";
 import type { Registry, ActEntry, RegistryInput, ActEntryInput } from "../types";
 import { generateDocument } from "../services/generatorService";
 import { createRegistryDocx } from "../services/registryDocxService";
+import { loadTemplates } from "../services/templateService";
+import { validate } from "../services/validationService";
 
 const router = Router();
 
@@ -43,8 +45,11 @@ router.post("/", (req: Request, res: Response) => {
 
 router.put("/:id", (req: Request, res: Response) => {
   const body = req.body as Partial<RegistryInput>;
+  if (body.name !== undefined && !body.name.trim()) {
+    return res.status(400).json({ error: "Поле name обязательно" });
+  }
   const updated = registryRepository.update(req.params.id, {
-    ...(body.name !== undefined && { name: body.name }),
+    ...(body.name !== undefined && { name: body.name.trim() }),
     ...(body.objectName !== undefined && { objectName: body.objectName }),
     ...(body.objectFields !== undefined && { objectFields: body.objectFields }),
   });
@@ -68,12 +73,21 @@ router.post("/:id/acts", (req: Request, res: Response) => {
   if (!body.templateCode?.trim()) {
     return res.status(400).json({ error: "Поле templateCode обязательно" });
   }
+  if (!loadTemplates().some((t) => t.code === body.templateCode)) {
+    return res.status(400).json({ error: `Неизвестный тип документа: ${body.templateCode}` });
+  }
+
+  // Object-level requisites (Объект/Стороны) fill gaps; explicit act data wins.
+  const data = { ...(reg.objectFields ?? {}), ...(body.data ?? {}) };
+  const errors = validate({ templateCode: body.templateCode, data });
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
 
   const act: ActEntry = {
     id: randomUUID(),
     templateCode: body.templateCode.trim(),
-    // Object-level requisites (Объект/Стороны) fill gaps; explicit act data wins.
-    data: { ...(reg.objectFields ?? {}), ...(body.data ?? {}) },
+    data,
     orderDirectives: body.orderDirectives ?? [],
     createdAt: new Date().toISOString(),
   };
@@ -89,13 +103,26 @@ router.put("/:id/acts/:actId", (req: Request, res: Response) => {
   if (!reg) return res.status(404).json({ error: "Реестр не найден" });
 
   const body = req.body as Partial<ActEntryInput>;
+  if (body.templateCode !== undefined && !loadTemplates().some((t) => t.code === body.templateCode)) {
+    return res.status(400).json({ error: `Неизвестный тип документа: ${body.templateCode}` });
+  }
   const idx = reg.items.findIndex((a) => a.id === req.params.actId);
   if (idx === -1) return res.status(404).json({ error: "Акт не найден" });
 
+  const templateCode = body.templateCode ?? reg.items[idx].templateCode;
+  const data = body.data !== undefined
+    ? { ...(reg.objectFields ?? {}), ...body.data }
+    : reg.items[idx].data;
+
+  const errors = validate({ templateCode, data });
+  if (errors.length > 0) {
+    return res.status(400).json({ errors });
+  }
+
   const updatedAct: ActEntry = {
     ...reg.items[idx],
-    ...(body.templateCode !== undefined && { templateCode: body.templateCode }),
-    ...(body.data !== undefined && { data: { ...(reg.objectFields ?? {}), ...body.data } }),
+    templateCode,
+    data,
     ...(body.orderDirectives !== undefined && { orderDirectives: body.orderDirectives }),
   };
 
@@ -108,6 +135,12 @@ router.put("/:id/acts/:actId", (req: Request, res: Response) => {
 
 // ── Batch generate: all acts + registry table → ZIP ──────────────────────
 
+interface ActFailure {
+  actId: string;
+  templateCode: string;
+  error: string;
+}
+
 router.post("/:id/generate", (req: Request, res: Response) => {
   const reg = registryRepository.getById(req.params.id);
   if (!reg) return res.status(404).json({ error: "Реестр не найден" });
@@ -115,22 +148,43 @@ router.post("/:id/generate", (req: Request, res: Response) => {
     return res.status(400).json({ error: "В реестре нет актов для генерации" });
   }
 
-  try {
-    const zip = new PizZip();
+  const zip = new PizZip();
+  const failures: ActFailure[] = [];
+  let successCount = 0;
 
-    // Generate each act
-    for (let i = 0; i < reg.items.length; i++) {
-      const act = reg.items[i];
+  // Generate each act independently — one broken act (stale template code,
+  // corrupted data) must not take down the whole batch. Failures are
+  // collected and reported instead of aborting.
+  for (let i = 0; i < reg.items.length; i++) {
+    const act = reg.items[i];
+    try {
       const { buffer, fileName } = generateDocument({
         templateCode: act.templateCode,
         data: act.data,
         orderDirectives: act.orderDirectives ?? [],
       });
+      successCount++;
       // Prefix with index so files stay ordered and names are unique
       const safeName = `${String(i + 1).padStart(3, "0")}_${fileName}`;
       zip.file(`акты/${safeName}`, buffer);
+    } catch (err) {
+      console.error(`Ошибка генерации акта ${act.id} (${act.templateCode}):`, err);
+      failures.push({
+        actId: act.id,
+        templateCode: act.templateCode,
+        error: err instanceof Error ? err.message : "Неизвестная ошибка",
+      });
     }
+  }
 
+  if (successCount === 0) {
+    return res.status(422).json({
+      error: "Не удалось сгенерировать ни одного акта из реестра",
+      failures,
+    });
+  }
+
+  try {
     // Generate registry summary docx
     const registryBuffer = createRegistryDocx(reg);
     const safeRegName = reg.name.replace(/[^\wЀ-ӿ\s-]/g, "_").trim() || "реестр";
@@ -139,6 +193,9 @@ router.post("/:id/generate", (req: Request, res: Response) => {
     const zipBuffer = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
     const zipName = `${safeRegName}_${new Date().toISOString().slice(0, 10)}.zip`;
 
+    if (failures.length > 0) {
+      res.setHeader("X-Registry-Warnings", encodeURIComponent(JSON.stringify(failures)));
+    }
     res.setHeader("Content-Type", "application/zip");
     res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(zipName)}`);
     res.send(zipBuffer);

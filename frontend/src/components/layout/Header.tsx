@@ -3,9 +3,9 @@ import { NavTabs, type NavItem } from "./NavTabs";
 export function Header({ items }: { items: NavItem[] }) {
   return (
     <header className="sticky top-0 z-40 border-b border-ink-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-6 px-4 py-3">
-        <div className="flex items-center gap-3 shrink-0">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-600 text-white">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-2 px-4 py-3">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white">
             <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path
                 fillRule="evenodd"
@@ -14,11 +14,14 @@ export function Header({ items }: { items: NavItem[] }) {
               />
             </svg>
           </div>
-          <div>
-            <h1 className="text-sm font-semibold uppercase tracking-wide text-ink-900">
-              Генератор исполнительной документации
+          <div className="min-w-0">
+            <h1 className="truncate text-sm font-semibold uppercase tracking-wide text-ink-900">
+              <span className="sm:hidden">Генератор ИД</span>
+              <span className="hidden sm:inline">Генератор исполнительной документации</span>
             </h1>
-            <p className="text-xs text-ink-400">Формирование актов, реестров и приказов</p>
+            <p className="hidden text-xs text-ink-400 sm:block">
+              Формирование актов, реестров и приказов
+            </p>
           </div>
         </div>
 

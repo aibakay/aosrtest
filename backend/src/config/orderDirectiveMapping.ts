@@ -129,6 +129,29 @@ export function buildOrderDirectiveData(
 }
 
 /**
+ * Names of the layer-1 "Приказ_*" keys buildOrderDirectiveData would emit for
+ * the given selection — the ones current templates have no bookmark for yet
+ * (see docs/TEMPLATES.md). Used to filter bookmarkFiller's "unresolved" list
+ * down to genuinely unexpected misses, since these are known/intentional.
+ */
+export function additiveOrderDirectiveKeys(
+  selected: SelectedOrderDirective[] | undefined
+): Set<string> {
+  const keys = new Set<string>();
+  if (!selected?.length) return keys;
+
+  for (const item of selected) {
+    if (!item.directive) continue;
+    const prefix = ROLE_PREFIX[item.role] ?? slugify(item.role);
+    keys.add(prefix);
+    keys.add(`${prefix}_ФИО`);
+    keys.add(`${prefix}_Должность`);
+    keys.add(`${prefix}_Документ`);
+  }
+  return keys;
+}
+
+/**
  * Subset of buildOrderDirectiveData that only returns the standard person
  * bookmark keys (layer 2). Used by the frontend to know which form fields
  * to pre-fill from a selected directive.

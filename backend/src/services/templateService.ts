@@ -113,7 +113,11 @@ export function loadTemplates(): TemplateDef[] {
     return { code, title: meta.title, description: meta.description, fields };
   });
 
-  // Sort by known order, then alphabetically
+  // Sort by known order, then alphabetically. This governs document-type
+  // ordering only (the /api/templates list the frontend renders as-is) — it
+  // is unrelated to GROUP_ORDER in frontend/src/components/DocumentForm.tsx,
+  // which orders form field sections within a single template. Neither list
+  // needs to stay in sync with the other.
   const ORDER = ["АОСР","АОСР3","АОСР_старый","АООК","АООК_старый","АОУСИТО","АРООКС","АОГРОКС","АВК","АГИ","АИИО","АПрОб","ОтЭфД","Пролив","Промывка"];
   templates.sort((a, b) => {
     const ia = ORDER.indexOf(a.code);

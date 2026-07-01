@@ -1,8 +1,8 @@
 import type { TemplateDef, SelectedOrderDirective } from "../types";
-import { API_BASE as BASE } from "./config";
+import { API_BASE as BASE, apiFetch } from "./config";
 
 export async function fetchTemplates(): Promise<TemplateDef[]> {
-  const res = await fetch(`${BASE}/templates`);
+  const res = await apiFetch(`${BASE}/templates`);
   if (!res.ok) throw new Error(`Ошибка загрузки шаблонов: ${res.status}`);
   return res.json();
 }
@@ -13,6 +13,8 @@ export interface GenerateResult {
   fileName: string;
   /** true when the response is a ZIP bundle (act + quality registry). */
   isBundle: boolean;
+  /** Bookmark names the backend couldn't fill in the generated document. */
+  unresolvedBookmarks: string[];
 }
 
 export async function generateDocument(
@@ -20,7 +22,7 @@ export async function generateDocument(
   data: Record<string, string>,
   orderDirectives?: SelectedOrderDirective[]
 ): Promise<GenerateResult> {
-  const res = await fetch(`${BASE}/documents/generate`, {
+  const res = await apiFetch(`${BASE}/documents/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ templateCode, data, orderDirectives }),
@@ -44,7 +46,13 @@ export async function generateDocument(
     try { fileName = decodeURIComponent(fnMatch[1]); } catch { /* keep default */ }
   }
 
-  return { blob: await res.blob(), fileName, isBundle };
+  let unresolvedBookmarks: string[] = [];
+  const unresolvedHeader = res.headers.get("X-Unresolved-Bookmarks");
+  if (unresolvedHeader) {
+    try { unresolvedBookmarks = JSON.parse(decodeURIComponent(unresolvedHeader)); } catch { /* ignore */ }
+  }
+
+  return { blob: await res.blob(), fileName, isBundle, unresolvedBookmarks };
 }
 
 export function downloadBlob(blob: Blob, filename: string) {

@@ -15,7 +15,12 @@ router.post("/generate", (req: Request, res: Response) => {
       return;
     }
 
-    const { buffer, fileName, registryBuffer, registryFileName } = generateDocument(body);
+    const { buffer, fileName, registryBuffer, registryFileName, unresolvedBookmarks } =
+      generateDocument(body);
+
+    if (unresolvedBookmarks.length > 0) {
+      res.setHeader("X-Unresolved-Bookmarks", encodeURIComponent(JSON.stringify(unresolvedBookmarks)));
+    }
 
     if (registryBuffer && registryFileName) {
       // Bundle main document + registry into a single ZIP archive

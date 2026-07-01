@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { Registry, ActEntry, TemplateDef, SelectedOrderDirective } from "../types";
 import { fetchRegistry, addAct, updateAct, deleteAct, generateRegistry } from "../api/registries";
 import { fetchTemplates, generateDocument, downloadBlob } from "../api/client";
@@ -12,6 +12,7 @@ import { ListItemCard } from "../components/ui/ListItemCard";
 import { EmptyState } from "../components/ui/EmptyState";
 import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { useToast } from "../components/ui/Toast";
+import { DownloadIcon, PlusIcon, EmptyDocOutlineIcon } from "../components/icons";
 
 interface Props {
   registryId: string;
@@ -27,31 +28,15 @@ const BackIcon = (
     <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
   </svg>
 );
-const GenerateAllIcon = (
-  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-  </svg>
-);
-const AddIcon = (
-  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
-  </svg>
-);
+const GenerateAllIcon = <DownloadIcon />;
+const AddIcon = <PlusIcon />;
 const CloseIcon = (
   <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
     <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
   </svg>
 );
-const DocxIcon = (
-  <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-  </svg>
-);
-const ActsEmptyIcon = (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
+const DocxIcon = <DownloadIcon />;
+const ActsEmptyIcon = <EmptyDocOutlineIcon />;
 
 export default function RegistryPage({ registryId }: Props) {
   const toast = useToast();
@@ -66,7 +51,7 @@ export default function RegistryPage({ registryId }: Props) {
   const [generatingId, setGeneratingId] = useState<string | null>(null);
   const [generatingAll, setGeneratingAll] = useState(false);
 
-  const load = () => {
+  const load = useCallback(() => {
     setLoading(true);
     Promise.all([fetchRegistry(registryId), fetchTemplates()])
       .then(([reg, tmpl]) => {
@@ -76,9 +61,9 @@ export default function RegistryPage({ registryId }: Props) {
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false));
-  };
+  }, [registryId]);
 
-  useEffect(() => { load(); }, [registryId]);
+  useEffect(() => { load(); }, [load]);
 
   const selectedTemplate = templates.find((t) => t.code === selectedTemplateCode) ?? null;
 
@@ -125,10 +110,15 @@ export default function RegistryPage({ registryId }: Props) {
     if (!registry) return;
     setGeneratingAll(true);
     try {
-      const blob = await generateRegistry(registryId);
-      const safeRegName = registry.name.replace(/[^\wА-яЁё\s-]/g, "_").trim() || "реестр";
-      const today = new Date().toISOString().slice(0, 10);
-      downloadBlob(blob, `${safeRegName}_${today}.zip`);
+      const { blob, fileName, failures } = await generateRegistry(registryId);
+      downloadBlob(blob, fileName);
+      if (failures.length > 0) {
+        toast.show(
+          `Скачано ${registry.items.length - failures.length} из ${registry.items.length} актов — ` +
+            `не удалось сгенерировать: ${failures.map((f) => f.templateCode).join(", ")}`,
+          "error"
+        );
+      }
     } catch (e) {
       toast.show(String(e), "error");
     } finally {
@@ -174,6 +164,7 @@ export default function RegistryPage({ registryId }: Props) {
           onClick={() => navigate("/registries")}
           className="mt-1 text-ink-400 transition-colors hover:text-ink-600"
           title="Назад к реестрам"
+          aria-label="Назад к реестрам"
         >
           {BackIcon}
         </button>
@@ -210,7 +201,7 @@ export default function RegistryPage({ registryId }: Props) {
         <Card highlight className="space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold text-ink-800">Новый акт</h3>
-            <button onClick={() => setMode({ kind: "list" })} className="text-ink-400 hover:text-ink-600">
+            <button onClick={() => setMode({ kind: "list" })} className="text-ink-400 hover:text-ink-600" title="Закрыть" aria-label="Закрыть">
               {CloseIcon}
             </button>
           </div>
@@ -247,7 +238,7 @@ export default function RegistryPage({ registryId }: Props) {
           <Card highlight className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-semibold text-ink-800">Редактирование акта</h3>
-              <button onClick={() => setMode({ kind: "list" })} className="text-ink-400 hover:text-ink-600">
+              <button onClick={() => setMode({ kind: "list" })} className="text-ink-400 hover:text-ink-600" title="Закрыть" aria-label="Закрыть">
                 {CloseIcon}
               </button>
             </div>
