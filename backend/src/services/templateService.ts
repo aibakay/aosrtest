@@ -13,12 +13,18 @@ const MONTHS_RU = [
 ];
 
 export function splitDate(isoDate: string, day: string, month: string, year: string): Record<string, string> {
-  const d = new Date(isoDate);
-  if (isNaN(d.getTime())) return { [day]: "", [month]: "", [year]: "" };
+  // Parse the "YYYY-MM-DD" string directly instead of `new Date(isoDate)`,
+  // which interprets it as UTC midnight and can shift the calendar day by one
+  // depending on the server's timezone.
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(isoDate?.trim() ?? "");
+  if (!m) return { [day]: "", [month]: "", [year]: "" };
+  const [, y, mo, d] = m;
+  const monthIdx = Number(mo);
+  if (monthIdx < 1 || monthIdx > 12) return { [day]: "", [month]: "", [year]: "" };
   return {
-    [day]:   String(d.getDate()).padStart(2, "0"),
-    [month]: MONTHS_RU[d.getMonth() + 1],
-    [year]:  String(d.getFullYear()),
+    [day]:   d,
+    [month]: MONTHS_RU[monthIdx],
+    [year]:  y,
   };
 }
 

@@ -1,11 +1,5 @@
 import type { TemplateDef, SelectedOrderDirective } from "../types";
-
-const BASE = (
-  (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, "") ??
-  (import.meta.env.PROD
-    ? "https://jubilant-unity-production-cdbb.up.railway.app/api"
-    : "/api")
-);
+import { API_BASE as BASE } from "./config";
 
 export async function fetchTemplates(): Promise<TemplateDef[]> {
   const res = await fetch(`${BASE}/templates`);

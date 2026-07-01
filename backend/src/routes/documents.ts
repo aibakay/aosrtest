@@ -40,8 +40,10 @@ router.post("/generate", (req: Request, res: Response) => {
       res.send(buffer);
     }
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Ошибка генерации документа", detail: String(err) });
+    // Log the full error server-side; return a generic message to the client
+    // so internal paths / stack details are not leaked.
+    console.error("Ошибка генерации документа:", err);
+    res.status(500).json({ error: "Ошибка генерации документа" });
   }
 });
 

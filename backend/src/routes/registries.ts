@@ -143,8 +143,9 @@ router.post("/:id/generate", (req: Request, res: Response) => {
     res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(zipName)}`);
     res.send(zipBuffer);
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Ошибка генерации реестра", detail: String(err) });
+    // Log full error server-side; return a generic message to the client.
+    console.error("Ошибка генерации реестра:", err);
+    res.status(500).json({ error: "Ошибка генерации реестра" });
   }
 });
 

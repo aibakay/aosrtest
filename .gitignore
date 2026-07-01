@@ -4,3 +4,6 @@ dist/
 *.log
 .claude/worktrees/
 backend/data/*.json
+backend/output/
+.env.local
+.env.*.local
