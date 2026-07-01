@@ -8,13 +8,18 @@
 | Что | Где |
 |---|---|
 | Frontend | https://frontend-chi-blush-17.vercel.app |
-| Backend API (используется фронтендом) | https://jubilant-unity-production-cdbb.up.railway.app |
-| Backend (зеркало на Vercel) | https://backend-pi-ashy-93.vercel.app |
+| Backend API | https://jubilant-unity-production-cdbb.up.railway.app |
 
-Бэкенд задеплоен на **Railway** (основной, хранит `backend/data/*.json`) и
-продублирован на **Vercel** (`backend/vercel.json`). Фронтенд — на **Vercel**
-(`frontend/vercel.json`); адрес backend задаётся через `VITE_API_URL`
-(см. `frontend/src/api/*.ts`).
+Бэкенд задеплоен **только на Railway** (хранит `backend/data/*.json` на
+персистентном диске). Фронтенд — на **Vercel** (`frontend/vercel.json`);
+адрес backend задаётся через `VITE_API_URL` (см. `frontend/src/api/config.ts`).
+
+> **Почему нет зеркала бэкенда на Vercel:** Vercel-функции — serverless с
+> эфемерной файловой системой (запись возможна только в `/tmp`, не переживает
+> между вызовами). Репозитории (`registryRepository`, `orderDirectiveRepository`)
+> пишут в JSON-файлы на диске — на Vercel это не работает и/или расходится
+> с данными на Railway. Если понадобится serverless-деплой, сначала нужно
+> перенести хранилище на внешнюю БД (см. `docs/PROJECT_STATE.md`).
 
 ## Запуск локально
 
@@ -175,10 +180,14 @@ docs/                         — анализ, архитектура, QA
 - **Backend**: Node.js, Express, TypeScript, pizzip (docx как zip)
 - **Frontend**: React, TypeScript, Vite, Tailwind CSS
 - **Генерация**: прямая правка `word/document.xml` (заполнение Word Bookmarks)
-- **Деплой**: Railway (backend, основной) + Vercel (frontend и зеркало backend)
+- **Деплой**: Railway (backend, единственный инстанс) + Vercel (frontend)
 
 ## Ограничения (вне MVP)
 - PDF-экспорт — не реализован.
 - Копирование вложенных файлов (схем, протоколов) — не реализовано.
-- Хранилище данных (приказы, реестры) — JSON-файлы без конкурентных блокировок,
-  достаточно для одного пользователя/малой команды.
+- Хранилище данных (приказы, реестры) — JSON-файлы через `JsonFileStore`
+  (`backend/src/repositories/jsonFileStore.ts`): запись атомарна (temp-файл +
+  `rename`), падение процесса не может повредить файл. Однако это защита
+  только от порчи файла, не от гонок между несколькими инстансами backend —
+  предполагается **один** запущенный процесс (`railway.json` → `numReplicas: 1`).
+  Для горизонтального масштабирования нужна настоящая БД.

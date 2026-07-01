@@ -1,6 +1,6 @@
-import fs from "fs";
 import path from "path";
 import { OrderDirective } from "../types";
+import { JsonFileStore } from "./jsonFileStore";
 
 /**
  * Storage abstraction for order/directive records.
@@ -18,68 +18,18 @@ export interface OrderDirectiveRepository {
   remove(id: string): boolean;
 }
 
-const DATA_DIR = path.join(__dirname, "../../data");
-const DATA_FILE = path.join(DATA_DIR, "order-directives.json");
+const DATA_FILE = path.join(__dirname, "../../data/order-directives.json");
 
-export class JsonOrderDirectiveRepository implements OrderDirectiveRepository {
-  private readonly file: string;
-
+/**
+ * Backed by an atomic (crash-safe) JSON file — see JsonFileStore for the
+ * write/concurrency guarantees.
+ */
+export class JsonOrderDirectiveRepository
+  extends JsonFileStore<OrderDirective>
+  implements OrderDirectiveRepository
+{
   constructor(file: string = DATA_FILE) {
-    this.file = file;
-    this.ensureFile();
-  }
-
-  private ensureFile(): void {
-    const dir = path.dirname(this.file);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    if (!fs.existsSync(this.file)) fs.writeFileSync(this.file, "[]", "utf-8");
-  }
-
-  private read(): OrderDirective[] {
-    try {
-      const raw = fs.readFileSync(this.file, "utf-8");
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? (parsed as OrderDirective[]) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private write(records: OrderDirective[]): void {
-    fs.writeFileSync(this.file, JSON.stringify(records, null, 2), "utf-8");
-  }
-
-  getAll(): OrderDirective[] {
-    return this.read();
-  }
-
-  getById(id: string): OrderDirective | undefined {
-    return this.read().find((r) => r.id === id);
-  }
-
-  create(record: OrderDirective): OrderDirective {
-    const records = this.read();
-    records.push(record);
-    this.write(records);
-    return record;
-  }
-
-  update(id: string, patch: Partial<OrderDirective>): OrderDirective | undefined {
-    const records = this.read();
-    const idx = records.findIndex((r) => r.id === id);
-    if (idx === -1) return undefined;
-    const updated = { ...records[idx], ...patch, id };
-    records[idx] = updated;
-    this.write(records);
-    return updated;
-  }
-
-  remove(id: string): boolean {
-    const records = this.read();
-    const next = records.filter((r) => r.id !== id);
-    if (next.length === records.length) return false;
-    this.write(next);
-    return true;
+    super(file);
   }
 }
 
